@@ -1,0 +1,5 @@
+./build/*
+./cmake-build-*/*
+./cmake/*
+./data/*
+./external/*
