@@ -61,6 +61,8 @@ public:
     std::optional<HitInfo> hitByRay(const Eigen::Vector3d &position, const Eigen::QuaternionD &orientation, const Eigen::Vector3d &scale,
                                     const Ray &ray) const override;
 
+    const std::vector<Mesh> &getMeshes() const;
+
 private:
     void load(const std::string &filePath);
 

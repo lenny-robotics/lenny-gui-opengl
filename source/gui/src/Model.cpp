@@ -294,4 +294,8 @@ void Model::load(const std::string &filePath) {
     }
 }
 
+const std::vector<Model::Mesh> &Model::getMeshes() const {
+    return this->meshes;
+}
+
 }  // namespace lenny::gui
