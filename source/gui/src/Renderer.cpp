@@ -1,5 +1,6 @@
 #include <lenny/gui/Model.h>
 #include <lenny/gui/Renderer.h>
+#include <lenny/gui/Utils.h>
 
 namespace lenny::gui {
 
@@ -48,6 +49,24 @@ void Renderer::drawCylinder(const Eigen::Vector3d& COM, const Eigen::QuaternionD
     Eigen::Vector3d startPosition = COM + orientation * Eigen::Vector3d(0.0, height / 2.0, 0.0);
     Eigen::Vector3d endPosition = COM - orientation * Eigen::Vector3d(0.0, height / 2.0, 0.0);
     drawCylinder(startPosition, endPosition, radius, color);
+}
+
+void Renderer::drawTetrahedron(const std::array<Eigen::Vector3d, 4>& globalPoints, const Eigen::Vector4d& color) const {
+    //Generate model
+    static const std::vector<Model::Mesh::Vertex> vertices(4, Model::Mesh::Vertex());
+    static const std::vector<uint> indices = {0, 1, 2, 1, 2, 3, 0, 1, 3, 0, 2, 3};
+    static Model model({{vertices, indices}});
+
+    //Update vertices
+    for (int i = 0; i < 4; i++)
+        model.meshes.at(0).vertices.at(i).position = utils::toGLM(globalPoints.at(i));
+    model.meshes.at(0).update();
+
+    //Draw model
+    static const Eigen::Vector3d position = Eigen::Vector3d::Zero();
+    static const Eigen::QuaternionD orientation = Eigen::QuaternionD::Identity();
+    static const Eigen::Vector3d scale = Eigen::Vector3d::Ones();
+    model.draw(position, orientation, scale, color.segment(0, 3), color[3]);
 }
 
 void Renderer::drawCone(const Eigen::Vector3d& origin, const Eigen::Vector3d& direction, const double& radius, const Eigen::Vector4d& color) const {

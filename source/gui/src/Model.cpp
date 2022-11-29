@@ -71,11 +71,8 @@ void Model::Mesh::setup() {
     //Bind and load data
     glBindVertexArray(VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
+    //Update vertices and indices info
+    update();
 
     //Set the vertex attribute pointers for ...
     //... positions
@@ -93,6 +90,16 @@ void Model::Mesh::setup() {
     //Unbind array
     glBindVertexArray(0);
 }
+
+void Model::Mesh::update() {
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
+}
+
+Model::Model(const std::vector<Mesh> &meshes) : tools::Model(""), meshes(meshes) {}
 
 Model::Model(const std::string &filePath) : tools::Model(filePath) {
     load(filePath);
@@ -292,10 +299,6 @@ void Model::load(const std::string &filePath) {
         else
             this->meshes.emplace_back(vertices, indices);
     }
-}
-
-const std::vector<Model::Mesh> &Model::getMeshes() const {
-    return this->meshes;
 }
 
 }  // namespace lenny::gui

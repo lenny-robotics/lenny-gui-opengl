@@ -33,21 +33,21 @@ public:
         Mesh(const std::vector<Vertex> &vertices, const std::vector<uint> &indices, const Material &material);
         ~Mesh() = default;
 
-        void draw(const std::optional<Eigen::Vector3d> &color) const;
-
-    private:
         void setup();
-
+        void update();
+        void draw(const std::optional<Eigen::Vector3d> &color) const;
+        
     public:
         std::vector<Vertex> vertices;
         std::vector<uint> indices;
+        std::optional<Material> material;
 
     private:
-        std::optional<Material> material;
         uint VAO, VBO, EBO;
     };
 
 public:
+    Model(const std::vector<Mesh> &meshes);
     Model(const std::string &filePath);
     ~Model() = default;
 
@@ -61,12 +61,9 @@ public:
     std::optional<HitInfo> hitByRay(const Eigen::Vector3d &position, const Eigen::QuaternionD &orientation, const Eigen::Vector3d &scale,
                                     const Ray &ray) const override;
 
-    const std::vector<Mesh> &getMeshes() const;
-
-private:
     void load(const std::string &filePath);
 
-private:
+public:
     std::vector<Mesh> meshes;
 };
 
