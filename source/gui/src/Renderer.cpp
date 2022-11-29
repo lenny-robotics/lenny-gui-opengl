@@ -58,8 +58,11 @@ void Renderer::drawTetrahedron(const std::array<Eigen::Vector3d, 4>& globalPoint
     static Model model({{vertices, indices}});
 
     //Update vertices
-    for (int i = 0; i < 4; i++)
+    static const glm::vec3 normal = utils::toGLM(Eigen::Vector3d::Ones().normalized());
+    for (int i = 0; i < 4; i++) {
         model.meshes.at(0).vertices.at(i).position = utils::toGLM(globalPoints.at(i));
+        model.meshes.at(0).vertices.at(i).normal = normal;
+    }
     model.meshes.at(0).update();
 
     //Draw model
