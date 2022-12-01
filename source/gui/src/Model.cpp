@@ -92,11 +92,15 @@ void Model::Mesh::setup() {
 }
 
 void Model::Mesh::update() {
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+    if (vertices.size() > 0) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+    }
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
+    if (indices.size() > 0) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
+    }
 }
 
 Model::Model(const std::vector<Mesh> &meshes) : tools::Model(""), meshes(meshes) {}
@@ -294,10 +298,13 @@ void Model::load(const std::string &filePath) {
                 LENNY_LOG_DEBUG("Number of indices should be 3, but instead is %d... We just ignore these indices", face.mNumIndices);
         }
 
-        if (paiMesh->mMaterialIndex < materials.size())
-            this->meshes.emplace_back(vertices, indices, materials[paiMesh->mMaterialIndex]);
-        else
-            this->meshes.emplace_back(vertices, indices);
+        //Add to meshes
+        if (vertices.size() > 0 && indices.size() > 0) {
+            if (paiMesh->mMaterialIndex < materials.size())
+                this->meshes.emplace_back(vertices, indices, materials[paiMesh->mMaterialIndex]);
+            else
+                this->meshes.emplace_back(vertices, indices);
+        }
     }
 }
 

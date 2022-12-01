@@ -39,7 +39,8 @@ public:
     };
     std::vector<Model> models = {Model(LENNY_GUI_TESTAPP_FOLDER "/config/nanosuit/NanoSuit.obj", 0.1),
                                  Model(LENNY_GUI_TESTAPP_FOLDER "/config/gripper/Gripper.obj", 3.0), Model(LENNY_GUI_TESTAPP_FOLDER "/config/car/Car.obj", 0.1),
-                                 Model(LENNY_GUI_TESTAPP_FOLDER "/config/widowx/Base.stl", 0.003), Model(LENNY_GUI_TESTAPP_FOLDER "/config/spot/Body.dae", 1.0)};
+                                 Model(LENNY_GUI_TESTAPP_FOLDER "/config/widowx/Base.stl", 0.003),
+                                 Model(LENNY_GUI_TESTAPP_FOLDER "/config/spot/Body.dae", 1.0)};
     Model* selectedModel = nullptr;
 
     float data_x = 0.f;

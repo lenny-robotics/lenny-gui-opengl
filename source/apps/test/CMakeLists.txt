@@ -1,7 +1,6 @@
 project(TestApp)
 
 file(GLOB sources
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
         )
