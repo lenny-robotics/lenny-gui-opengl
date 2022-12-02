@@ -40,6 +40,20 @@ Ray Camera::getRayFromScreenCoordinates(double xPos, double yPos) const {
     return {utils::toEigen(p1), utils::toEigen(p2 - p1).normalized()};  //[origin, direction]
 }
 
+Eigen::Vector3d Camera::getGlobalPointFromScreenCoordinates(const Eigen::Vector3d& globalTargetPoint, double xPos, double yPos) const {
+    const Ray ray = getRayFromScreenCoordinates(xPos, yPos);
+    struct Plane {
+        Eigen::Vector3d point, normal;
+    };
+    const Plane plane = {globalTargetPoint, (gui::utils::toEigen(getPosition()) - target).normalized()};
+    if (fabs(ray.direction.dot(plane.normal)) < 1e-8)
+        return ray.origin;
+    const double t = (plane.point - ray.origin).dot(plane.normal) / ray.direction.dot(plane.normal);
+    if (t < 0)
+        return ray.origin;
+    return ray.origin + ray.direction * t;
+}
+
 void Camera::setAspectRatio(double aspectRatio) {
     this->aspectRatio = aspectRatio;
 }
