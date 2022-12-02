@@ -15,11 +15,11 @@ namespace lenny::gui {
 Application::Application(const std::string &title) {
     initializeGLFW(title);
     initializeOpenGL();
+    initializeImGui();
     setCallbacks();
     glfwMaximizeWindow(this->glfwWindow);
     setCameraAspectRatio();
     Shaders::initialize();
-    initializeImGui();
     setGuiAndRenderer();
 }
 
