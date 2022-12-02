@@ -16,6 +16,7 @@ public:
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
     Ray getRayFromScreenCoordinates(double xPos, double yPos) const;
+    Eigen::Vector3d getGlobalPointFromScreenCoordinates(const Eigen::Vector3d& globalTargetPoint, double xPos, double yPos) const;
 
     //--- Set
     void setAspectRatio(double aspectRatio);
