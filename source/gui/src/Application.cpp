@@ -15,11 +15,12 @@ namespace lenny::gui {
 Application::Application(const std::string &title) {
     initializeGLFW(title);
     initializeOpenGL();
+    setCallbacks();
+    glfwMaximizeWindow(this->glfwWindow);
+    setCameraAspectRatio();
     Shaders::initialize();
     initializeImGui();
-    setCallbacks();
     setGuiAndRenderer();
-    setCameraAspectRatio();
 }
 
 Application::~Application() {
@@ -52,9 +53,14 @@ void Application::initializeGLFW(const std::string &title) {
     if (!mode)
         LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
 
-    //Get window dimensions
-    this->width = mode->width;
-    this->height = mode->height;
+    //Set window dimensions
+    const int borderLeft = 2;
+    const int borderTop = 70;
+    const int borderRight = 2;
+    const int borderBottom = 105;
+
+    this->width = mode->width - borderLeft - borderRight;
+    this->height = mode->height - borderTop - borderBottom;
 
     //Set glfw window hints
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4.6);
@@ -72,10 +78,6 @@ void Application::initializeGLFW(const std::string &title) {
     if (!this->glfwWindow)
         LENNY_LOG_ERROR("GLFW: Failed to create window!");
     glfwMakeContextCurrent(this->glfwWindow);
-
-    //Maximize window
-    glfwSetWindowPos(this->glfwWindow, 0, 0);
-    glfwMaximizeWindow(this->glfwWindow);
 
     //Disable waiting for framerate of glfw window
     glfwSwapInterval(0);
