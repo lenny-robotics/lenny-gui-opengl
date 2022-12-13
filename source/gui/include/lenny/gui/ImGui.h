@@ -54,12 +54,12 @@ inline bool EnumSelection(const char* label, uint& selectionIndex) {
 
     bool selected = false;
     constexpr auto enum_names = magic_enum::enum_names<T_enum>();
-    const char* selectedString = std::string(enum_names.at(selectionIndex)).c_str();
-    if (ImGui::BeginCombo(label, selectedString)) {
+    const std::string selectedString = std::string(enum_names.at(selectionIndex));
+    if (ImGui::BeginCombo(label, selectedString.c_str())) {
         for (uint i = 0; i < enum_count; i++) {
-            const char* currentElement = std::string(enum_names[i]).c_str();
+            const std::string currentElement = std::string(enum_names[i]);
             const bool is_selected = (selectedString == currentElement);
-            if (ImGui::Selectable(currentElement, &is_selected)) {
+            if (ImGui::Selectable(currentElement.c_str(), &is_selected)) {
                 selectionIndex = i;
                 selected = true;
             }
