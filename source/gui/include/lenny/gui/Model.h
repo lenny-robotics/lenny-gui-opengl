@@ -36,7 +36,7 @@ public:
         void setup();
         void update();
         void draw(const std::optional<Eigen::Vector3d> &color) const;
-        
+
     public:
         std::vector<Vertex> vertices;
         std::vector<uint> indices;
@@ -62,6 +62,7 @@ public:
                                     const Ray &ray) const override;
 
     void load(const std::string &filePath);
+    bool exportToFile(const std::string &format) const;
 
 public:
     std::vector<Mesh> meshes;

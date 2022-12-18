@@ -114,6 +114,7 @@ if (NOT TARGET assimp)
 
     #Exporters
     set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF CACHE BOOL "default value of all ASSIMP_BUILD_XXX_EXPORTER values")
+    set(ASSIMP_BUILD_OBJ_EXPORTER ON CACHE BOOL "OBJ Exporter")
 
     add_subdirectory(${assimp_SOURCE_DIR} assimp)
 endif ()

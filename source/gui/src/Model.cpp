@@ -11,6 +11,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
+#include <assimp/Exporter.hpp>
 #include <assimp/Importer.hpp>
 #include <glm/gtx/hash.hpp>
 #include <glm/gtx/intersect.hpp>
@@ -295,7 +296,7 @@ void Model::load(const std::string &filePath) {
                 for (uint k = 0; k < 3; k++)
                     indices.push_back(face.mIndices[k]);
             else
-                LENNY_LOG_DEBUG("Number of indices should be 3, but instead is %d... We just ignore these indices", face.mNumIndices);
+                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(), face.mNumIndices);
         }
 
         //Add to meshes
@@ -306,6 +307,17 @@ void Model::load(const std::string &filePath) {
                 this->meshes.emplace_back(vertices, indices);
         }
     }
+}
+
+bool Model::exportToFile(const std::string &format) const {
+    const std::size_t found = filePath.find_last_of(".");
+    const std::string exportPath = filePath.substr(0, found + 1) + format;
+    Assimp::Importer importer;
+    const aiScene *scene = importer.ReadFile(filePath, aiProcess_ValidateDataStructure);
+    Assimp::Exporter exporter;
+    exporter.Export(scene, format, exportPath);
+    LENNY_LOG_INFO("Successfully exported file `%s`", exportPath.c_str());
+    return true;
 }
 
 }  // namespace lenny::gui
