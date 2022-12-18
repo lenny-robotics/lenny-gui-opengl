@@ -414,6 +414,8 @@ void Application::draw() {
         Renderer::I->drawCoordinateSystem(Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), 0.1, 0.01);
     drawScene();
 
+    wrapUpDraw();
+
     //--- ImGui
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();

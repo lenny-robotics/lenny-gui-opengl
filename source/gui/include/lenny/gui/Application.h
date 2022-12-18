@@ -26,6 +26,7 @@ protected:
     //--- Drawing
     virtual void prepareToDraw() {}
     virtual void drawScene() const {}
+    virtual void wrapUpDraw() {}
     virtual void drawGui();
 
     //--- Interaction
