@@ -1,5 +1,5 @@
-#include <lenny/gui/ImGui.h>
 #include <imgui_internal.h>
+#include <lenny/gui/ImGui.h>
 
 namespace ImGui {
 
@@ -24,6 +24,8 @@ bool SliderOrientation(const char* label, Eigen::Matrix3d& R, const char* format
     bool t = SliderVectorD<3>(label, delta, -1.0 * bound * Eigen::Vector3d::Ones(), bound * Eigen::Vector3d::Ones(), format, flags);
     if (t)
         R = R * lenny::tools::utils::rotX(delta[0]) * lenny::tools::utils::rotY(delta[1]) * lenny::tools::utils::rotZ(delta[2]);
+    const Eigen::QuaternionD q(R);
+    ImGui::Text("w: %lf, x: %lf, y: %lf, z: %lf", q.w(), q.x(), q.y(), q.z());
     return t;
 }
 
