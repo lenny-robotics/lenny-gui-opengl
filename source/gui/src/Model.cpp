@@ -10,6 +10,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <meshoptimizer.h>
 
 #include <assimp/Exporter.hpp>
 #include <assimp/Importer.hpp>
@@ -296,7 +297,8 @@ void Model::load(const std::string &filePath) {
                 for (uint k = 0; k < 3; k++)
                     indices.push_back(face.mIndices[k]);
             else
-                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(), face.mNumIndices);
+                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(),
+                                face.mNumIndices);
         }
 
         //Add to meshes
@@ -318,6 +320,52 @@ bool Model::exportToFile(const std::string &format) const {
     exporter.Export(scene, format, exportPath);
     LENNY_LOG_INFO("Successfully exported file `%s`", exportPath.c_str());
     return true;
+}
+
+void Model::simplify() {
+    //Loop over meshes
+    for (uint i = 0; i < meshes.size(); i++) {
+        std::vector<uint> indices = meshes.at(i).indices;
+        std::vector<glm::vec3> positions;
+        for (const auto &vertex : meshes.at(i).vertices)
+            positions.emplace_back(vertex.position);
+
+        //Indexing
+        std::vector<uint> remap(indices.size());
+        const size_t vertexCount =
+            meshopt_generateVertexRemap(remap.data(), indices.data(), indices.size(), positions.data(), indices.size(), sizeof(glm::vec3));
+
+        std::vector<uint> remappedIndices(indices.size());
+        std::vector<glm::vec3> remappedVertices(vertexCount);
+        meshopt_remapIndexBuffer(remappedIndices.data(), indices.data(), indices.size(), remap.data());
+        meshopt_remapVertexBuffer(remappedVertices.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+
+        //Vertex cache optimization
+        meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), indices.size(), vertexCount);
+
+        //Overdraw optimization
+        meshopt_optimizeOverdraw(remappedIndices.data(), remappedIndices.data(), indices.size(), &remappedVertices[0].x, vertexCount, sizeof(glm::vec3), 1.05f);
+
+        //Vertex fetch optimization
+        meshopt_optimizeVertexFetch(remappedVertices.data(), remappedIndices.data(), indices.size(), remappedVertices.data(), vertexCount, sizeof(glm::vec3));
+
+        //Simplification
+        const float threshold = 0.2f;
+        const size_t target_index_count = size_t((float)remappedIndices.size() * threshold);
+        const float target_error = 1e-2f;
+        std::vector<uint> indicesLod(remappedIndices.size());
+        indicesLod.resize(meshopt_simplify(&indicesLod[0], remappedIndices.data(), remappedIndices.size(), &remappedVertices[0].x, vertexCount,
+                                           sizeof(glm::vec3), target_index_count, target_error));
+
+        LENNY_LOG_DEBUG("INDICES: (%d VS %d) / VERTICES: (%d VS %d)", indices.size(), remappedIndices.size(), positions.size(), remappedVertices.size())
+
+        //https://github.com/zeux/meshoptimizer
+        //https://subscription.packtpub.com/book/game-development/9781838986193/2/ch02lvl1sec21/introducing-meshoptimizer
+
+        //Add back
+        //        indices = remappedIndices;
+        //        vertices = remappedVertices;
+    }
 }
 
 }  // namespace lenny::gui

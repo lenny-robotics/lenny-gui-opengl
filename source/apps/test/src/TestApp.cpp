@@ -108,6 +108,10 @@ void TestApp::drawGui() {
         if (ImGui::TreeNode("ImGuizmo")) {
             ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, camera.getViewMatrix(),
                                 camera.getProjectionMatrix());
+
+            if(ImGui::Button("SIMPLIFY"))
+                selectedModel->mesh.simplify();
+
             ImGui::TreePop();
         }
     }
