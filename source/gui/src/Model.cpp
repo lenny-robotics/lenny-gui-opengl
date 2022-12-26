@@ -323,48 +323,78 @@ bool Model::exportToFile(const std::string &format) const {
 }
 
 void Model::simplify() {
+    //https://github.com/zeux/meshoptimizer
+    //https://subscription.packtpub.com/book/game-development/9781838986193/2/ch02lvl1sec21/introducing-meshoptimizer
+
     //Loop over meshes
     for (uint i = 0; i < meshes.size(); i++) {
         std::vector<uint> indices = meshes.at(i).indices;
-        std::vector<glm::vec3> positions;
-        for (const auto &vertex : meshes.at(i).vertices)
-            positions.emplace_back(vertex.position);
+        std::vector<glm::vec3> positions, normals;
+        std::vector<glm::vec2> texCoords;
+        for (const auto &vertex : meshes.at(i).vertices) {
+            positions.push_back(vertex.position);
+            normals.push_back(vertex.normal);
+            texCoords.push_back(vertex.texCoords);
+        }
+        meshopt_Stream streams[] = {{positions.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
+                                    {normals.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
+                                    {texCoords.data(), sizeof(glm::vec2), sizeof(glm::vec2)}};
 
         //Indexing
         std::vector<uint> remap(indices.size());
         const size_t vertexCount =
-            meshopt_generateVertexRemap(remap.data(), indices.data(), indices.size(), positions.data(), indices.size(), sizeof(glm::vec3));
+            meshopt_generateVertexRemapMulti(remap.data(), indices.data(), indices.size(), positions.size(), streams, sizeof(streams) / sizeof(streams[0]));
 
         std::vector<uint> remappedIndices(indices.size());
-        std::vector<glm::vec3> remappedVertices(vertexCount);
+        std::vector<glm::vec3> remappedPositions(vertexCount), remappedNormals(vertexCount);
+        std::vector<glm::vec2> remappedTexCoords(vertexCount);
         meshopt_remapIndexBuffer(remappedIndices.data(), indices.data(), indices.size(), remap.data());
-        meshopt_remapVertexBuffer(remappedVertices.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(remappedPositions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(remappedNormals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(remappedTexCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
 
-        //Vertex cache optimization
-        meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), indices.size(), vertexCount);
-
-        //Overdraw optimization
-        meshopt_optimizeOverdraw(remappedIndices.data(), remappedIndices.data(), indices.size(), &remappedVertices[0].x, vertexCount, sizeof(glm::vec3), 1.05f);
+        //        //Vertex cache optimization
+        //        meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), remappedIndices.size(), vertexCount);
+        //
+        //        //Overdraw optimization
+        //        std::vector<float> rmp(3 * remappedPositions.size());
+        //        for (const glm::vec3 &vertex : remappedPositions) {
+        //            rmp.push_back(vertex.x);
+        //            rmp.push_back(vertex.y);
+        //            rmp.push_back(vertex.z);
+        //        }
+        //        meshopt_optimizeOverdraw(remappedIndices.data(), remappedIndices.data(), remappedIndices.size(), rmp.data(), rmp.size(), sizeof(float), 1.05f);
 
         //Vertex fetch optimization
-        meshopt_optimizeVertexFetch(remappedVertices.data(), remappedIndices.data(), indices.size(), remappedVertices.data(), vertexCount, sizeof(glm::vec3));
+        //meshopt_optimizeVertexFetch(remappedVertices.data(), remappedIndices.data(), indices.size(), remappedVertices.data(), vertexCount, sizeof(glm::vec3));
+        //        remap.clear();
+        //        meshopt_optimizeVertexFetchRemap(remap.data(), remappedIndices.data(), remappedIndices.size(), vertexCount);
+        //
+        //        meshopt_remapVertexBuffer(remappedPositions.data(), remappedPositions.data(), remappedPositions.size(), sizeof(glm::vec3), remap.data());
+        //        meshopt_remapVertexBuffer(remappedNormals.data(), remappedNormals.data(), remappedNormals.size(), sizeof(glm::vec3), remap.data());
+        //        meshopt_remapVertexBuffer(remappedTexCoords.data(), remappedTexCoords.data(), remappedTexCoords.size(), sizeof(glm::vec2), remap.data());
 
         //Simplification
         const float threshold = 0.2f;
         const size_t target_index_count = size_t((float)remappedIndices.size() * threshold);
-        const float target_error = 1e-2f;
-        std::vector<uint> indicesLod(remappedIndices.size());
-        indicesLod.resize(meshopt_simplify(&indicesLod[0], remappedIndices.data(), remappedIndices.size(), &remappedVertices[0].x, vertexCount,
-                                           sizeof(glm::vec3), target_index_count, target_error));
+        const float target_error = 1.2f;
+        std::vector<float> rmp(3 * remappedPositions.size());
+        for (const glm::vec3 &vertex : remappedPositions) {
+            rmp.push_back(vertex.x);
+            rmp.push_back(vertex.y);
+            rmp.push_back(vertex.z);
+        }
+        remappedIndices.resize(meshopt_simplify(remappedIndices.data(), remappedIndices.data(), remappedIndices.size(), rmp.data(), rmp.size(), sizeof(float),
+                                                target_index_count, target_error));
 
-        LENNY_LOG_DEBUG("INDICES: (%d VS %d) / VERTICES: (%d VS %d)", indices.size(), remappedIndices.size(), positions.size(), remappedVertices.size())
-
-        //https://github.com/zeux/meshoptimizer
-        //https://subscription.packtpub.com/book/game-development/9781838986193/2/ch02lvl1sec21/introducing-meshoptimizer
+        LENNY_LOG_DEBUG("INDICES: (%d VS %d) / VERTICES: (%d VS %d)", indices.size(), remappedIndices.size(), positions.size(), remappedPositions.size())
 
         //Add back
-        //        indices = remappedIndices;
-        //        vertices = remappedVertices;
+        meshes.at(i).indices = remappedIndices;
+        meshes.at(i).vertices.clear();
+        for (int j = 0; j < vertexCount; j++)
+            meshes.at(i).vertices.push_back({remappedPositions.at(j), remappedNormals.at(j), remappedTexCoords.at(j)});
+        meshes.at(i).update();
     }
 }
 
