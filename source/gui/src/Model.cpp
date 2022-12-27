@@ -365,6 +365,7 @@ void Model::simplify(const float &threshold, const float &targetError, const boo
             const aiVector3D tCoo = paiMesh->HasTextureCoords(0) ? paiMesh->mTextureCoords[0][j] : aiVector3D(0.f, 0.f, 0.f);
             texCoords.push_back(glm::vec2(tCoo.x, tCoo.y));
         }
+        const int originalVertexCount = positions.size();
         meshopt_Stream streams[] = {
             {positions.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
             {normals.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
@@ -379,35 +380,49 @@ void Model::simplify(const float &threshold, const float &targetError, const boo
                 for (uint k = 0; k < 3; k++)
                     indices.push_back(face.mIndices[k]);
         }
+        const int originalIndexCount = indices.size();
 
-        //Indexing
+        //--> Indexing
         std::vector<uint> remap(indices.size());
-        const size_t vertexCount =
+        size_t vertexCount =
             meshopt_generateVertexRemapMulti(remap.data(), indices.data(), indices.size(), positions.size(), streams, sizeof(streams) / sizeof(streams[0]));
 
-        std::vector<uint> remappedIndices(indices.size());
-        std::vector<glm::vec3> remappedPositions(vertexCount), remappedNormals(vertexCount);
-        std::vector<glm::vec2> remappedTexCoords(vertexCount);
-        meshopt_remapIndexBuffer(remappedIndices.data(), indices.data(), indices.size(), remap.data());
-        meshopt_remapVertexBuffer(remappedPositions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
-        meshopt_remapVertexBuffer(remappedNormals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
-        meshopt_remapVertexBuffer(remappedTexCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
+        meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
+        meshopt_remapVertexBuffer(positions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(normals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(texCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
 
-        //Simplification
-        const size_t targetIndexCount = size_t((float)remappedIndices.size() * threshold);
-        std::vector<uint> simplifiedIndices(remappedIndices.size());
+        //--> Simplification
+        const size_t targetIndexCount = size_t((float)indices.size() * threshold);
         float simplificationError = 0.f;
-        simplifiedIndices.resize(meshopt_simplify(&simplifiedIndices[0], remappedIndices.data(), remappedIndices.size(), &remappedPositions[0].x, vertexCount,
-                                                  sizeof(glm::vec3), targetIndexCount, targetError, 0, &simplificationError));
+        indices.resize(meshopt_simplify(&indices[0], indices.data(), indices.size(), &positions[0].x, vertexCount, sizeof(glm::vec3), targetIndexCount,
+                                        targetError, 0, &simplificationError));
 
-        LENNY_LOG_DEBUG("Index count: (%d VS %d). Vertex count: (%d VS %d). Result error: %lf", indices.size(), simplifiedIndices.size(), positions.size(),
-                        remappedPositions.size(), simplificationError);
+        //--> Vertex cache optimization
+        meshopt_optimizeVertexCache(indices.data(), indices.data(), indices.size(), vertexCount);
+
+        //--> Overdraw optimization
+        meshopt_optimizeOverdraw(indices.data(), indices.data(), indices.size(), &positions[0].x, vertexCount, sizeof(glm::vec3), 1.05f);
+
+        //---> Vertex fetch optimization
+        remap.clear();
+        remap.resize(vertexCount);
+        vertexCount = meshopt_optimizeVertexFetchRemap(remap.data(), indices.data(), indices.size(), vertexCount);
+
+        meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
+        meshopt_remapVertexBuffer(positions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(normals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(texCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
+
+        //Debug output
+        LENNY_LOG_DEBUG("MESH SIMPLIFICATION: Index count: (%d VS %d). Vertex count: (%d VS %d). Result error: %lf", indices.size(), originalIndexCount,
+                        positions.size(), originalVertexCount, simplificationError);
 
         //Update the stored meshes, so we can see the result
         meshes.at(i).vertices.clear();
         for (int j = 0; j < vertexCount; j++)
-            meshes.at(i).vertices.push_back({remappedPositions.at(j), remappedNormals.at(j), remappedTexCoords.at(j)});
-        meshes.at(i).indices = simplifiedIndices;
+            meshes.at(i).vertices.push_back({positions.at(j), normals.at(j), texCoords.at(j)});
+        meshes.at(i).indices = indices;
         meshes.at(i).setup();
 
         //Update the scene, so we can potentially export it
@@ -421,12 +436,12 @@ void Model::simplify(const float &threshold, const float &targetError, const boo
             paiMesh->mTextureCoords[0] = new aiVector3D[vertexCount];
 
             for (int j = 0; j < vertexCount; j++) {
-                paiMesh->mVertices[j] = aiVector3D(remappedPositions.at(j).x, remappedPositions.at(j).y, remappedPositions.at(j).z);
-                paiMesh->mNormals[j] = aiVector3D(remappedNormals.at(j).x, remappedNormals.at(j).y, remappedNormals.at(j).z);
-                paiMesh->mTextureCoords[0][j] = aiVector3D(remappedTexCoords.at(j).x, remappedTexCoords.at(j).y, 0.0);
+                paiMesh->mVertices[j] = aiVector3D(positions.at(j).x, positions.at(j).y, positions.at(j).z);
+                paiMesh->mNormals[j] = aiVector3D(normals.at(j).x, normals.at(j).y, normals.at(j).z);
+                paiMesh->mTextureCoords[0][j] = aiVector3D(texCoords.at(j).x, texCoords.at(j).y, 0.0);
             }
 
-            const int numFaces = simplifiedIndices.size() / 3;
+            const int numFaces = indices.size() / 3;
             paiMesh->mNumFaces = numFaces;
             delete[] paiMesh->mFaces;
             paiMesh->mFaces = new aiFace[numFaces];
@@ -434,7 +449,7 @@ void Model::simplify(const float &threshold, const float &targetError, const boo
                 paiMesh->mFaces[j].mNumIndices = 3;
                 paiMesh->mFaces[j].mIndices = new unsigned int[3];
                 for (int k = 0; k < 3; k++) {
-                    paiMesh->mFaces[j].mIndices[k] = simplifiedIndices.at(j * 3 + k);
+                    paiMesh->mFaces[j].mIndices[k] = indices.at(j * 3 + k);
                 }
             }
         }
