@@ -117,6 +117,9 @@ void TestApp::drawGui() {
             if (ImGui::Button("SIMPLIFY"))
                 selectedModel->mesh.simplify(threshold, target_error);
 
+            //            if (ImGui::Button("CONVERSION"))
+//                selectedModel->mesh.conversionTest();
+
             ImGui::TreePop();
         }
     }
