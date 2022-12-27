@@ -109,8 +109,13 @@ void TestApp::drawGui() {
             ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, camera.getViewMatrix(),
                                 camera.getProjectionMatrix());
 
-            if(ImGui::Button("SIMPLIFY"))
-                selectedModel->mesh.simplify();
+            static float threshold = 1.f;
+            static float target_error = 0.01;
+            ImGui::SliderFloat("Threshold", &threshold, 0.f, 1.f);
+            ImGui::SliderFloat("Target Error", &target_error, 0.f, 1.f);
+
+            if (ImGui::Button("SIMPLIFY"))
+                selectedModel->mesh.simplify(threshold, target_error);
 
             ImGui::TreePop();
         }

@@ -219,7 +219,8 @@ void Model::load(const std::string &filePath) {
 
     //--- Parse file
     Assimp::Importer importer;
-    const uint loadFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices;
+    const uint loadFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
+                           aiProcess_ValidateDataStructure | aiProcess_SplitLargeMeshes | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph;
     const aiScene *pScene = importer.ReadFile(filePath.c_str(), loadFlags);
     if (!pScene)
         LENNY_LOG_ERROR("Error in parsing file `%s`: `%s`", filePath.c_str(), importer.GetErrorString());
@@ -322,6 +323,55 @@ bool Model::exportToFile(const std::string &format) const {
     return true;
 }
 
+void Model::simplify(const float &threshold, const float &target_error) {
+    //https://github.com/zeux/meshoptimizer
+    //https://subscription.packtpub.com/book/game-development/9781838986193/2/ch02lvl1sec21/introducing-meshoptimizer
+
+    //Loop over meshes
+    for (uint i = 0; i < meshes.size(); i++) {
+        //Gather mesh info
+        std::vector<uint> indices = meshes.at(i).indices;
+        std::vector<glm::vec3> vertices;
+        for (const auto &vertex : meshes.at(i).vertices)
+            vertices.emplace_back(vertex.position);
+
+        //Indexing
+        //        std::vector<uint> remap(indices.size());
+        //        const size_t vertex_count =
+        //            meshopt_generateVertexRemap(remap.data(), indices.data(), indices.size(), vertices.data(), indices.size(), sizeof(glm::vec3));
+        //
+        //        std::vector<uint> remappedIndices(indices.size());
+        //        std::vector<glm::vec3> remappedVertices(vertex_count);
+        //        meshopt_remapIndexBuffer(remappedIndices.data(), indices.data(), indices.size(), remap.data());
+        //        meshopt_remapVertexBuffer(remappedVertices.data(), vertices.data(), vertices.size(), sizeof(glm::vec3), remap.data());
+
+        //        //Simplification
+        //        size_t target_index_count = size_t(remappedIndices.size() * threshold);
+        //        std::vector<uint> lod(remappedIndices.size());
+        //        float lod_error = 0.f;
+        //        lod.resize(meshopt_simplify(&lod[0], remappedIndices.data(), remappedIndices.size(), &remappedVertices[0].x, vertex_count, sizeof(glm::vec3),
+        //                                    target_index_count, target_error, 0, &lod_error));
+        //        LENNY_LOG_DEBUG("Index count: (%d VS %d). Vertex count: (%d VS %d). Result error: %lf", indices.size(), lod.size(), vertices.size(),
+        //                        remappedVertices.size(), lod_error);
+
+        //Simplification
+        size_t target_index_count = size_t(indices.size() * threshold);
+        std::vector<uint> lod(indices.size());
+        float lod_error = 0.f;
+        lod.resize(meshopt_simplify(&lod[0], indices.data(), indices.size(), &vertices[0].x, vertices.size(), sizeof(glm::vec3), target_index_count,
+                                    target_error, 0, &lod_error));
+        LENNY_LOG_DEBUG("Index count: (%d VS %d). Vertex count: (%d VS %d). Result error: %lf", indices.size(), lod.size(), vertices.size(), vertices.size(),
+                        lod_error);
+
+        meshes.at(i).indices = lod;
+        //        meshes.at(i).vertices.clear();
+        //        for (int j = 0; j < vertices.size(); j++)
+        //            meshes.at(i).vertices.push_back({vertices.at(j), glm::vec3(1.0, 1.0, 1.0), glm::vec2(0.0, 0.0)});
+        meshes.at(i).update();
+    }
+}
+
+/*
 void Model::simplify() {
     //https://github.com/zeux/meshoptimizer
     //https://subscription.packtpub.com/book/game-development/9781838986193/2/ch02lvl1sec21/introducing-meshoptimizer
@@ -329,29 +379,31 @@ void Model::simplify() {
     //Loop over meshes
     for (uint i = 0; i < meshes.size(); i++) {
         std::vector<uint> indices = meshes.at(i).indices;
-        std::vector<glm::vec3> positions, normals;
-        std::vector<glm::vec2> texCoords;
+        std::vector<float> positions, normals, texCoords;
         for (const auto &vertex : meshes.at(i).vertices) {
-            positions.push_back(vertex.position);
-            normals.push_back(vertex.normal);
-            texCoords.push_back(vertex.texCoords);
+            for (int j = 0; j < 3; j++) {
+                positions.push_back(vertex.position[j]);
+                normals.push_back(vertex.normal[j]);
+                if (j < 2)
+                    texCoords.push_back(vertex.texCoords[j]);
+            }
         }
-        meshopt_Stream streams[] = {{positions.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
-                                    {normals.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
-                                    {texCoords.data(), sizeof(glm::vec2), sizeof(glm::vec2)}};
+        meshopt_Stream streams[] = {{positions.data(), sizeof(float) * 3, sizeof(float) * 3},
+                                    {normals.data(), sizeof(float) * 3, sizeof(float) * 3},
+                                    {texCoords.data(), sizeof(float) * 2, sizeof(float) * 2}};
 
         //Indexing
         std::vector<uint> remap(indices.size());
         const size_t vertexCount =
-            meshopt_generateVertexRemapMulti(remap.data(), indices.data(), indices.size(), positions.size(), streams, sizeof(streams) / sizeof(streams[0]));
+            meshopt_generateVertexRemapMulti(remap.data(), indices.data(), indices.size(), positions.size() / 3, streams, sizeof(streams) / sizeof(streams[0]));
+        LENNY_LOG_DEBUG("Vertex count: %d", vertexCount)
 
         std::vector<uint> remappedIndices(indices.size());
-        std::vector<glm::vec3> remappedPositions(vertexCount), remappedNormals(vertexCount);
-        std::vector<glm::vec2> remappedTexCoords(vertexCount);
+        std::vector<float> remappedPositions(vertexCount / 3), remappedNormals(vertexCount / 3), remappedTexCoords(vertexCount / 2);
         meshopt_remapIndexBuffer(remappedIndices.data(), indices.data(), indices.size(), remap.data());
-        meshopt_remapVertexBuffer(remappedPositions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
-        meshopt_remapVertexBuffer(remappedNormals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
-        meshopt_remapVertexBuffer(remappedTexCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
+        meshopt_remapVertexBuffer(remappedPositions.data(), positions.data(), positions.size()  / 3, sizeof(float) * 3, remap.data());
+        meshopt_remapVertexBuffer(remappedNormals.data(), normals.data(), normals.size() / 3, sizeof(float) * 3, remap.data());
+        meshopt_remapVertexBuffer(remappedTexCoords.data(), texCoords.data(), texCoords.size() / 2, sizeof(float) * 2, remap.data());
 
         //        //Vertex cache optimization
         //        meshopt_optimizeVertexCache(remappedIndices.data(), remappedIndices.data(), remappedIndices.size(), vertexCount);
@@ -373,19 +425,19 @@ void Model::simplify() {
         //        meshopt_remapVertexBuffer(remappedPositions.data(), remappedPositions.data(), remappedPositions.size(), sizeof(glm::vec3), remap.data());
         //        meshopt_remapVertexBuffer(remappedNormals.data(), remappedNormals.data(), remappedNormals.size(), sizeof(glm::vec3), remap.data());
         //        meshopt_remapVertexBuffer(remappedTexCoords.data(), remappedTexCoords.data(), remappedTexCoords.size(), sizeof(glm::vec2), remap.data());
-
-        //Simplification
-        const float threshold = 0.2f;
-        const size_t target_index_count = size_t((float)remappedIndices.size() * threshold);
-        const float target_error = 1.2f;
-        std::vector<float> rmp(3 * remappedPositions.size());
-        for (const glm::vec3 &vertex : remappedPositions) {
-            rmp.push_back(vertex.x);
-            rmp.push_back(vertex.y);
-            rmp.push_back(vertex.z);
-        }
-        remappedIndices.resize(meshopt_simplify(remappedIndices.data(), remappedIndices.data(), remappedIndices.size(), rmp.data(), rmp.size(), sizeof(float),
-                                                target_index_count, target_error));
+        //
+        //        //Simplification
+        //        const float threshold = 0.2f;
+        //        const size_t target_index_count = size_t((float)remappedIndices.size() * threshold);
+        //        const float target_error = 1.2f;
+        //        std::vector<float> rmp(3 * remappedPositions.size());
+        //        for (const glm::vec3 &vertex : remappedPositions) {
+        //            rmp.push_back(vertex.x);
+        //            rmp.push_back(vertex.y);
+        //            rmp.push_back(vertex.z);
+        //        }
+        //        remappedIndices.resize(meshopt_simplify(remappedIndices.data(), remappedIndices.data(), remappedIndices.size(), rmp.data(), rmp.size(), sizeof(float),
+        //                                                target_index_count, target_error));
 
         LENNY_LOG_DEBUG("INDICES: (%d VS %d) / VERTICES: (%d VS %d)", indices.size(), remappedIndices.size(), positions.size(), remappedPositions.size())
 
@@ -397,5 +449,6 @@ void Model::simplify() {
         meshes.at(i).update();
     }
 }
+ */
 
 }  // namespace lenny::gui

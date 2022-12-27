@@ -63,7 +63,7 @@ public:
 
     void load(const std::string &filePath);
     bool exportToFile(const std::string &format) const;
-    void simplify();
+    void simplify(const float& threshold, const float& target_error);
 
 public:
     std::vector<Mesh> meshes;
