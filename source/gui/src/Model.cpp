@@ -312,15 +312,58 @@ void Model::load(const std::string &filePath) {
     }
 }
 
-bool Model::exportToFile(const std::string &format) const {
-    const std::size_t found = filePath.find_last_of(".");
-    const std::string exportPath = filePath.substr(0, found + 1) + format;
-    Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(filePath, aiProcess_ValidateDataStructure);
+bool Model::save(const std::string &filePath) const {
+    //Create scene
+    aiScene pScene;
+
+    //Initialize meshes
+    pScene.mNumMeshes = this->meshes.size();
+    pScene.mMeshes = new aiMesh *[this->meshes.size()];
+
+    //ToDo: Do we need to initialize mRootNode???
+    //ToDo: Materials!
+
+    for (int i = 0; i < this->meshes.size(); i++) {
+        const Mesh &mesh = this->meshes.at(i);
+
+        //Initialize mesh
+        pScene.mMeshes[i] = new aiMesh();
+        aiMesh *pMesh = pScene.mMeshes[i];
+
+        //Setup vertices
+        pMesh->mNumVertices = mesh.vertices.size();
+
+        delete[] pMesh->mVertices;
+        pMesh->mVertices = new aiVector3D[mesh.vertices.size()];
+
+        delete[] pMesh->mNormals;
+        pMesh->mNormals = new aiVector3D[mesh.vertices.size()];
+
+        delete[] pMesh->mTextureCoords[0];
+        pMesh->mTextureCoords[0] = new aiVector3D[mesh.vertices.size()];
+
+        for (int j = 0; j < mesh.vertices.size(); j++) {
+            const Mesh::Vertex &vertex = mesh.vertices.at(j);
+            pMesh->mVertices[j] = aiVector3D(vertex.position.x, vertex.position.y, vertex.position.z);
+            pMesh->mNormals[j] = aiVector3D(vertex.normal.x, vertex.normal.y, vertex.normal.z);
+            pMesh->mTextureCoords[0][j] = aiVector3D(vertex.texCoords.x, vertex.texCoords.y, 0.0);
+        }
+
+        //Setup indices
+        const int numFaces = mesh.indices.size() / 3;
+        pMesh->mNumFaces = numFaces;
+        delete[] pMesh->mFaces;
+        pMesh->mFaces = new aiFace[numFaces];
+        for (int j = 0; j < numFaces; j++) {
+            pMesh->mFaces[j].mNumIndices = 3;
+            pMesh->mFaces[j].mIndices = new unsigned int[3];
+            for (int k = 0; k < 3; k++)
+                pMesh->mFaces[j].mIndices[k] = mesh.indices.at(j * 3 + k);
+        }
+    }
+
     Assimp::Exporter exporter;
-    exporter.Export(scene, format, exportPath);
-    LENNY_LOG_INFO("Successfully exported file `%s`", exportPath.c_str());
-    return true;
+    aiReturn exportInfo = exporter.Export(&pScene, "stl", filePath);
 }
 
 void Model::simplify(const float &threshold, const float &target_error) {
@@ -478,133 +521,10 @@ void Model::simplify(const float &threshold, const float &target_error) {
         //________________________________________________________________________________________
     }
 
-    const std::size_t found = filePath.find_last_of("/");
+    const std::size_t found = filePath.find_last_of(".");
     const std::string exportPath = filePath.substr(0, found + 1) + "Test.obj";
     Assimp::Exporter exporter;
     aiReturn exportInfo = exporter.Export(pScene, "obj", filePath);
-    LENNY_LOG_INFO("%d - %s", exportInfo, exportPath.c_str());
-}
-
-void Model::conversionTest() {
-    //--- Parse file
-    Assimp::Importer importer;
-    const uint loadFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
-                           aiProcess_ValidateDataStructure | aiProcess_SplitLargeMeshes | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph;
-    const aiScene *pScene = importer.ReadFile(filePath.c_str(), loadFlags);
-    if (!pScene)
-        LENNY_LOG_ERROR("Error in parsing file `%s`: `%s`", filePath.c_str(), importer.GetErrorString());
-
-    //--- Meshes
-    for (uint i = 0; i < pScene->mNumMeshes; i++) {
-        aiMesh *paiMesh = pScene->mMeshes[i];
-
-        //Vertices
-        std::vector<glm::vec3> positions, normals;
-        std::vector<glm::vec2> texCoords;
-        for (uint j = 0; j < paiMesh->mNumVertices; j++) {
-            const aiVector3D &pPos = paiMesh->mVertices[j];
-            positions.push_back(glm::vec3(pPos.x, pPos.y, pPos.z));
-
-            aiVector3D pNor(0.f, 1.f, 0.f);
-            if (paiMesh->mNormals)
-                pNor = paiMesh->mNormals[j];
-            else
-                LENNY_LOG_DEBUG("No vertex normal available for file %s", filePath.c_str());
-            normals.push_back(glm::vec3(pNor.x, pNor.y, pNor.z));
-
-            aiVector3D tCoo(0.f, 0.f, 0.f);
-            if (paiMesh->HasTextureCoords(0))
-                tCoo = paiMesh->mTextureCoords[0][j];
-            texCoords.push_back(glm::vec2(tCoo.x, tCoo.y));
-        }
-
-        //Indices
-        std::vector<uint> indices;
-        LENNY_LOG_DEBUG("NUM FACES 1: %d", paiMesh->mNumFaces)
-        for (uint j = 0; j < paiMesh->mNumFaces; j++) {
-            const aiFace &face = paiMesh->mFaces[j];
-
-            if (face.mNumIndices == 3) {
-                for (uint k = 0; k < 3; k++) {
-                    indices.push_back(face.mIndices[k]);
-                }
-            } else {
-                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(),
-                                face.mNumIndices);
-            }
-        }
-
-        //Update the scene
-        paiMesh->mNumVertices = positions.size();
-
-        delete[] paiMesh->mVertices;
-        paiMesh->mVertices = new aiVector3D[positions.size()];
-
-        delete[] paiMesh->mNormals;
-        paiMesh->mNormals = new aiVector3D[normals.size()];
-
-        delete[] paiMesh->mTextureCoords[0];
-        paiMesh->mTextureCoords[0] = new aiVector3D[texCoords.size()];
-
-        for (int j = 0; j < positions.size(); j++) {
-            paiMesh->mVertices[j] = aiVector3D(positions.at(j).x, positions.at(j).y, positions.at(j).z);
-            paiMesh->mNormals[j] = aiVector3D(normals.at(j).x, normals.at(j).y, normals.at(j).z);
-            paiMesh->mTextureCoords[0][j] = aiVector3D(texCoords.at(j).x, texCoords.at(j).y, 0.0);
-        }
-
-        const int numFaces = indices.size() / 3;
-        paiMesh->mNumFaces = numFaces;
-        delete[] paiMesh->mFaces;
-        paiMesh->mFaces = new aiFace[numFaces];
-        for (int j = 0; j < numFaces; j++) {
-            paiMesh->mFaces[j].mNumIndices = 3;
-            paiMesh->mFaces[j].mIndices = new unsigned int[3];
-            for (int k = 0; k < 3; k++) {
-                paiMesh->mFaces[j].mIndices[k] = indices.at(j * 3 + k);
-            }
-        }
-
-        //----------------------------------- TESTING ----------------------------------------------
-        //Vertices
-        std::vector<Mesh::Vertex> testVertices;
-        for (uint j = 0; j < paiMesh->mNumVertices; j++) {
-            const aiVector3D &pPos = paiMesh->mVertices[j];
-
-            aiVector3D pNor(0.f, 1.f, 0.f);
-            if (paiMesh->mNormals)
-                pNor = paiMesh->mNormals[j];
-            else
-                LENNY_LOG_DEBUG("No vertex normal available for file %s", filePath.c_str());
-
-            aiVector3D tCoo(0.f, 0.f, 0.f);
-            if (paiMesh->HasTextureCoords(0))
-                tCoo = paiMesh->mTextureCoords[0][j];
-
-            testVertices.push_back({glm::vec3(pPos.x, pPos.y, pPos.z), glm::vec3(pNor.x, pNor.y, pNor.z), glm::vec2(tCoo.x, tCoo.y)});
-        }
-
-        //Indices
-        std::vector<uint> testIndices;
-        for (uint j = 0; j < paiMesh->mNumFaces; j++) {
-            const aiFace &face = paiMesh->mFaces[j];
-
-            if (face.mNumIndices == 3)
-                for (uint k = 0; k < 3; k++)
-                    testIndices.push_back(face.mIndices[k]);
-            else
-                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(),
-                                face.mNumIndices);
-        }
-        meshes.at(i).indices = testIndices;
-        meshes.at(i).vertices = testVertices;
-        meshes.at(i).setup();
-        //________________________________________________________________________________________
-    }
-
-    const std::size_t found = filePath.find_last_of("/");
-    const std::string exportPath = filePath.substr(0, found + 1) + "Test.obj";
-    Assimp::Exporter exporter;
-    aiReturn exportInfo = exporter.Export(pScene, "stl", filePath);
     LENNY_LOG_INFO("%d - %s", exportInfo, exportPath.c_str());
 }
 
