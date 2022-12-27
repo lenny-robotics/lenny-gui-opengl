@@ -10,6 +10,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <meshoptimizer.h>
 
 #include <assimp/Exporter.hpp>
 #include <assimp/Importer.hpp>
@@ -202,7 +203,7 @@ inline uint loadTextureFromFile(const std::string &fileName, const std::string &
     return textureID;
 }
 
-void Model::load(const std::string &filePath) {
+inline uint prepareImporter(const std::string &filePath) {
     //Check file extension
     const std::vector<std::string> supportedFileExtensions = {"obj", "OBJ", "stl", "STL", "dae", "DAE"};
 
@@ -217,8 +218,15 @@ void Model::load(const std::string &filePath) {
         LENNY_LOG_ERROR("File extension of `%s` is currently not supported", filePath.c_str());
 
     //--- Parse file
+    const uint loadFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices |
+                           aiProcess_ValidateDataStructure | aiProcess_SplitLargeMeshes | aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph;
+    return loadFlags;
+}
+
+void Model::load(const std::string &filePath) {
+    //--- Import
+    const uint loadFlags = prepareImporter(filePath);
     Assimp::Importer importer;
-    const uint loadFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_FlipUVs | aiProcess_JoinIdenticalVertices;
     const aiScene *pScene = importer.ReadFile(filePath.c_str(), loadFlags);
     if (!pScene)
         LENNY_LOG_ERROR("Error in parsing file `%s`: `%s`", filePath.c_str(), importer.GetErrorString());
@@ -296,7 +304,8 @@ void Model::load(const std::string &filePath) {
                 for (uint k = 0; k < 3; k++)
                     indices.push_back(face.mIndices[k]);
             else
-                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(), face.mNumIndices);
+                LENNY_LOG_DEBUG("(Model `%s`): Number of indices should be 3, but instead is %d... We just ignore these indices", filePath.c_str(),
+                                face.mNumIndices);
         }
 
         //Add to meshes
@@ -309,15 +318,154 @@ void Model::load(const std::string &filePath) {
     }
 }
 
-bool Model::exportToFile(const std::string &format) const {
-    const std::size_t found = filePath.find_last_of(".");
-    const std::string exportPath = filePath.substr(0, found + 1) + format;
+bool Model::exportAsOBJ() const {
+    //--- Import
+    const uint loadFlags = prepareImporter(filePath);
     Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile(filePath, aiProcess_ValidateDataStructure);
+    const aiScene *pScene = importer.ReadFile(filePath.c_str(), loadFlags);
+    if (!pScene)
+        LENNY_LOG_ERROR("Error in parsing file `%s`: `%s`", filePath.c_str(), importer.GetErrorString());
+
+    //--- Export
+    const std::size_t found = filePath.find_last_of(".");
+    const std::string exportPath = filePath.substr(0, found + 1) + "obj";
     Assimp::Exporter exporter;
-    exporter.Export(scene, format, exportPath);
-    LENNY_LOG_INFO("Successfully exported file `%s`", exportPath.c_str());
+    const aiReturn response = exporter.Export(pScene, "obj", exportPath);
+    if (response != aiReturn_SUCCESS) {
+        LENNY_LOG_WARNING("Could not export file `%s`", exportPath.c_str());
+        return false;
+    }
+    LENNY_LOG_INFO("Successfully exported file `%s`", exportPath.c_str())
     return true;
+}
+
+void Model::simplify(const float &threshold, const float &targetError, const bool &saveToFile) {
+    //--- Import
+    const uint loadFlags = prepareImporter(filePath);
+    Assimp::Importer importer;
+    const aiScene *pScene = importer.ReadFile(filePath.c_str(), loadFlags);
+    if (!pScene)
+        LENNY_LOG_ERROR("Error in parsing file `%s`: `%s`", filePath.c_str(), importer.GetErrorString());
+
+    //--- Meshes
+    for (uint i = 0; i < pScene->mNumMeshes; i++) {
+        //Get current mesh
+        aiMesh *paiMesh = pScene->mMeshes[i];
+
+        //Get vertices
+        std::vector<glm::vec3> positions, normals;
+        std::vector<glm::vec2> texCoords;
+        for (uint j = 0; j < paiMesh->mNumVertices; j++) {
+            const aiVector3D &pPos = paiMesh->mVertices[j];
+            positions.push_back(glm::vec3(pPos.x, pPos.y, pPos.z));
+
+            const aiVector3D pNor = paiMesh->mNormals ? paiMesh->mNormals[j] : aiVector3D(0.f, 1.f, 0.f);
+            normals.push_back(glm::vec3(pNor.x, pNor.y, pNor.z));
+
+            const aiVector3D tCoo = paiMesh->HasTextureCoords(0) ? paiMesh->mTextureCoords[0][j] : aiVector3D(0.f, 0.f, 0.f);
+            texCoords.push_back(glm::vec2(tCoo.x, tCoo.y));
+        }
+        const int originalVertexCount = positions.size();
+        meshopt_Stream streams[] = {
+            {positions.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
+            {normals.data(), sizeof(glm::vec3), sizeof(glm::vec3)},
+            {texCoords.data(), sizeof(glm::vec2), sizeof(glm::vec2)},
+        };
+
+        //Get indices
+        std::vector<uint> indices;
+        for (uint j = 0; j < paiMesh->mNumFaces; j++) {
+            const aiFace &face = paiMesh->mFaces[j];
+            if (face.mNumIndices == 3)
+                for (uint k = 0; k < 3; k++)
+                    indices.push_back(face.mIndices[k]);
+        }
+        const int originalIndexCount = indices.size();
+
+        //--> Indexing
+        std::vector<uint> remap(indices.size());
+        size_t vertexCount =
+            meshopt_generateVertexRemapMulti(remap.data(), indices.data(), indices.size(), positions.size(), streams, sizeof(streams) / sizeof(streams[0]));
+
+        meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
+        meshopt_remapVertexBuffer(positions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(normals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(texCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
+
+        //--> Simplification
+        const size_t targetIndexCount = size_t((float)indices.size() * threshold);
+        float simplificationError = 0.f;
+        indices.resize(meshopt_simplify(&indices[0], indices.data(), indices.size(), &positions[0].x, vertexCount, sizeof(glm::vec3), targetIndexCount,
+                                        targetError, 0, &simplificationError));
+
+        //--> Vertex cache optimization
+        meshopt_optimizeVertexCache(indices.data(), indices.data(), indices.size(), vertexCount);
+
+        //--> Overdraw optimization
+        meshopt_optimizeOverdraw(indices.data(), indices.data(), indices.size(), &positions[0].x, vertexCount, sizeof(glm::vec3), 1.05f);
+
+        //---> Vertex fetch optimization
+        remap.clear();
+        remap.resize(vertexCount);
+        vertexCount = meshopt_optimizeVertexFetchRemap(remap.data(), indices.data(), indices.size(), vertexCount);
+
+        meshopt_remapIndexBuffer(indices.data(), indices.data(), indices.size(), remap.data());
+        meshopt_remapVertexBuffer(positions.data(), positions.data(), positions.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(normals.data(), normals.data(), normals.size(), sizeof(glm::vec3), remap.data());
+        meshopt_remapVertexBuffer(texCoords.data(), texCoords.data(), texCoords.size(), sizeof(glm::vec2), remap.data());
+
+        //Debug output
+        LENNY_LOG_DEBUG("MESH SIMPLIFICATION: Index count: (%d VS %d). Vertex count: (%d VS %d). Result error: %lf", indices.size(), originalIndexCount,
+                        positions.size(), originalVertexCount, simplificationError);
+
+        //Update the stored meshes, so we can see the result
+        meshes.at(i).vertices.clear();
+        for (int j = 0; j < vertexCount; j++)
+            meshes.at(i).vertices.push_back({positions.at(j), normals.at(j), texCoords.at(j)});
+        meshes.at(i).indices = indices;
+        meshes.at(i).setup();
+
+        //Update the scene, so we can potentially export it
+        if (saveToFile) {
+            paiMesh->mNumVertices = vertexCount;
+            delete[] paiMesh->mVertices;
+            paiMesh->mVertices = new aiVector3D[vertexCount];
+            delete[] paiMesh->mNormals;
+            paiMesh->mNormals = new aiVector3D[vertexCount];
+            delete[] paiMesh->mTextureCoords[0];
+            paiMesh->mTextureCoords[0] = new aiVector3D[vertexCount];
+
+            for (int j = 0; j < vertexCount; j++) {
+                paiMesh->mVertices[j] = aiVector3D(positions.at(j).x, positions.at(j).y, positions.at(j).z);
+                paiMesh->mNormals[j] = aiVector3D(normals.at(j).x, normals.at(j).y, normals.at(j).z);
+                paiMesh->mTextureCoords[0][j] = aiVector3D(texCoords.at(j).x, texCoords.at(j).y, 0.0);
+            }
+
+            const int numFaces = indices.size() / 3;
+            paiMesh->mNumFaces = numFaces;
+            delete[] paiMesh->mFaces;
+            paiMesh->mFaces = new aiFace[numFaces];
+            for (int j = 0; j < numFaces; j++) {
+                paiMesh->mFaces[j].mNumIndices = 3;
+                paiMesh->mFaces[j].mIndices = new unsigned int[3];
+                for (int k = 0; k < 3; k++) {
+                    paiMesh->mFaces[j].mIndices[k] = indices.at(j * 3 + k);
+                }
+            }
+        }
+    }
+
+    //--- Export
+    if (saveToFile) {
+        const std::size_t found = filePath.find_last_of(".");
+        const std::string exportPath = filePath.substr(0, found + 1) + "obj";
+        Assimp::Exporter exporter;
+        const aiReturn response = exporter.Export(pScene, "obj", exportPath);
+        if (response != aiReturn_SUCCESS)
+            LENNY_LOG_WARNING("Could not export file `%s`", exportPath.c_str())
+        else
+            LENNY_LOG_INFO("Successfully exported file `%s`", exportPath.c_str())
+    }
 }
 
 }  // namespace lenny::gui

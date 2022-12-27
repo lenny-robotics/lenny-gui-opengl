@@ -118,3 +118,14 @@ if (NOT TARGET assimp)
 
     add_subdirectory(${assimp_SOURCE_DIR} assimp)
 endif ()
+
+# meshoptimizer
+if (NOT TARGET meshoptimizer)
+    FetchContent_Declare(
+            meshoptimizer #
+            URL https://github.com/zeux/meshoptimizer/archive/refs/tags/v0.18.zip #
+            URL_HASH MD5=E2BF4D9E82410E9EABA8776C2DE98D7B #
+    )
+    fetch_repository(meshoptimizer)
+    add_subdirectory(${meshoptimizer_SOURCE_DIR} meshoptimizer)
+endif ()

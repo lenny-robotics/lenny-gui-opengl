@@ -14,6 +14,7 @@ target_link_libraries(${PROJECT_NAME}
         PUBLIC implot #
         PUBLIC stb_image #
         PUBLIC assimp #
+        PUBLIC meshoptimizer #
         PUBLIC lenny::tools #
         )
 
