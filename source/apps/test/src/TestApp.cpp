@@ -109,16 +109,17 @@ void TestApp::drawGui() {
             ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, camera.getViewMatrix(),
                                 camera.getProjectionMatrix());
 
-            static float threshold = 1.f;
-            static float target_error = 0.01;
+            static float threshold = 0.8f;
+            static float targetError = 0.01;
+            static bool saveToFile = false;
             ImGui::SliderFloat("Threshold", &threshold, 0.f, 1.f);
-            ImGui::SliderFloat("Target Error", &target_error, 0.f, 1.f);
+            ImGui::SliderFloat("Target Error", &targetError, 0.f, 1.f);
+            ImGui::Checkbox("Save To File", &saveToFile);
+            if (ImGui::Button("Simplify"))
+                selectedModel->mesh.simplify(threshold, targetError, saveToFile);
 
-            if (ImGui::Button("SIMPLIFY"))
-                selectedModel->mesh.simplify(threshold, target_error);
-
-            //            if (ImGui::Button("CONVERSION"))
-//                selectedModel->mesh.conversionTest();
+            if (ImGui::Button("Export as OBJ"))
+                selectedModel->mesh.exportAsOBJ();
 
             ImGui::TreePop();
         }

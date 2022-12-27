@@ -62,8 +62,8 @@ public:
                                     const Ray &ray) const override;
 
     void load(const std::string &filePath);
-    bool save(const std::string &filePath) const;
-    void simplify(const float &threshold, const float &target_error);
+    bool exportAsOBJ() const;
+    void simplify(const float &threshold, const float &targetError, const bool &saveToFile);
 
 public:
     std::vector<Mesh> meshes;
