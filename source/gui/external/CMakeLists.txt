@@ -1,9 +1,6 @@
 # set new cmake policy
 set_new_cmake_policy()
 
-# lenny-tools
-fetch_lenny_repository(tools master)
-
 # glad
 if (NOT TARGET glad)
     set(OpenGL_GL_PREFERENCE GLVND)
