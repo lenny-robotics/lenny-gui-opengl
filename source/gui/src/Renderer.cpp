@@ -6,7 +6,7 @@ namespace lenny::gui {
 
 void Renderer::drawCuboid(const Eigen::Vector3d& COM, const Eigen::QuaternionD& orientation, const Eigen::Vector3d& dimensions,
                           const Eigen::Vector4d& color) const {
-    static Model cube(LENNY_GUI_PROJECT_FOLDER "/data/meshes/cube.obj");
+    static Model cube(LENNY_GUI_OPENGL_FOLDER "/data/meshes/cube.obj");
     cube.draw(COM, orientation, dimensions, color.segment(0, 3), color[3]);
 }
 
@@ -16,19 +16,19 @@ void Renderer::drawPlane(const Eigen::Vector3d& COM, const Eigen::QuaternionD& o
 }
 
 void Renderer::drawSphere(const Eigen::Vector3d& position, const double& radius, const Eigen::Vector4d& color) const {
-    static Model sphere(LENNY_GUI_PROJECT_FOLDER "/data/meshes/sphere.obj");
+    static Model sphere(LENNY_GUI_OPENGL_FOLDER "/data/meshes/sphere.obj");
     sphere.draw(position, Eigen::QuaternionD::Identity(), 2.0 * radius * Eigen::Vector3d::Ones(), color.segment(0, 3), color[3]);
 }
 
 void Renderer::drawEllipsoid(const Eigen::Vector3d& COM, const Eigen::QuaternionD& orientation, const Eigen::Vector3d& dimensions,
                              const Eigen::Vector4d& color) const {
-    static Model sphere(LENNY_GUI_PROJECT_FOLDER "/data/meshes/sphere.obj");
+    static Model sphere(LENNY_GUI_OPENGL_FOLDER "/data/meshes/sphere.obj");
     sphere.draw(COM, orientation, 2.0 * dimensions, color.segment(0, 3), color[3]);
 }
 
 void Renderer::drawCylinder(const Eigen::Vector3d& startPosition, const Eigen::Vector3d& endPosition, const double& radius,
                             const Eigen::Vector4d& color) const {
-    static Model cylinder(LENNY_GUI_PROJECT_FOLDER "/data/meshes/cylinder.obj");
+    static Model cylinder(LENNY_GUI_OPENGL_FOLDER "/data/meshes/cylinder.obj");
 
     Eigen::Vector3d dir = endPosition - startPosition;
     double s = dir.norm();
@@ -73,7 +73,7 @@ void Renderer::drawTetrahedron(const std::array<Eigen::Vector3d, 4>& globalPoint
 }
 
 void Renderer::drawCone(const Eigen::Vector3d& origin, const Eigen::Vector3d& direction, const double& radius, const Eigen::Vector4d& color) const {
-    static Model cone(LENNY_GUI_PROJECT_FOLDER "/data/meshes/cone.obj");
+    static Model cone(LENNY_GUI_OPENGL_FOLDER "/data/meshes/cone.obj");
 
     double s = direction.norm();
     if (s < 10e-10)
@@ -139,7 +139,7 @@ void Renderer::drawTrajectory(const std::vector<Eigen::Vector3d>& trajectoryPoin
 
 void Renderer::drawSector(const Eigen::Vector3d& center, const Eigen::QuaternionD& orientation, const double& radius,
                           const std::pair<double, double>& angleRange, const Eigen::Vector4d& color) const {
-    static Model sector(LENNY_GUI_PROJECT_FOLDER "/data/meshes/sector.obj");
+    static Model sector(LENNY_GUI_OPENGL_FOLDER "/data/meshes/sector.obj");
     for (double angle = angleRange.first; angle < angleRange.second; angle += PI / 180.0) {
         sector.draw(center, orientation * tools::utils::getRotationQuaternion(angle, Eigen::Vector3d::UnitY()), 1e-3 * radius * Eigen::Vector3d::Ones(),
                     color.segment(0, 3), color[3]);

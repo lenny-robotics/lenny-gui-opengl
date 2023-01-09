@@ -128,7 +128,7 @@ void Shader::getCodeFromFile(std::string &code, const std::string &path) const {
         split(token, s, ' ');
         if (token.size() >= 2 && token[0] == "#include") {
             token[1].erase(remove(token[1].begin(), token[1].end(), '\"'), token[1].end());
-            std::string includePath = LENNY_GUI_PROJECT_FOLDER + std::string("/shaders/") + token[1];
+            std::string includePath = LENNY_GUI_OPENGL_FOLDER + std::string("/shaders/") + token[1];
             std::ifstream sourceFile(includePath);
             s.assign((std::istreambuf_iterator<char>(sourceFile)), std::istreambuf_iterator<char>());
         }

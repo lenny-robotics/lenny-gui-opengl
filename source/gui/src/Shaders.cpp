@@ -8,7 +8,7 @@ Shader* Shaders::activeShader = nullptr;
 
 void Shaders::initialize() {
     shaderList.clear();
-    shaderList.emplace_back(LENNY_GUI_PROJECT_FOLDER "/data/shaders/shader.vert", LENNY_GUI_PROJECT_FOLDER "/data/shaders/shader.frag");
+    shaderList.emplace_back(LENNY_GUI_OPENGL_FOLDER "/data/shaders/shader.vert", LENNY_GUI_OPENGL_FOLDER "/data/shaders/shader.frag");
 
     setActiveShader(BASIC);
 }
