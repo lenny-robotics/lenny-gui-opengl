@@ -118,6 +118,7 @@ void Model::draw(const Eigen::Vector3d &position, const Eigen::QuaternionD &orie
     Shaders::activeShader->setFloat("objectAlpha", (float)alpha);
     for (const Mesh &mesh : meshes)
         mesh.draw(color);
+    tools::Model::draw(position, orientation, scale, color, alpha);
 }
 
 std::optional<Model::HitInfo> Model::hitByRay(const Eigen::Vector3d &position, const Eigen::QuaternionD &orientation, const Eigen::Vector3d &scale,
