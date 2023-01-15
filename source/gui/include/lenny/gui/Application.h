@@ -4,6 +4,7 @@
 #include <lenny/gui/Camera.h>
 #include <lenny/gui/Ground.h>
 #include <lenny/gui/Light.h>
+#include <lenny/gui/Scene.h>
 
 #include <array>
 #include <thread>
@@ -75,7 +76,8 @@ protected:
     bool useSeparateProcessThread = false;
 
     //--- Members
-    Camera camera;
+    Scene::UPtr scene;
+    Camera camera;  //ToDo: Shift into scene?
     Light light;
     Ground ground;
 
