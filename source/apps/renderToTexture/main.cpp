@@ -19,6 +19,10 @@ using namespace glm;
 #include <common/texture.hpp>
 #include <common/vboindexer.hpp>
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 int main(void) {
     // Initialise GLFW
     if (!glfwInit()) {
@@ -49,19 +53,10 @@ int main(void) {
     // But on MacOS X with a retina screen it'll be 1024*2 and 768*2, so we get the actual framebuffer size:
     glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
-    //    // Initialize GLEW
-    //    glewExperimental = true; // Needed for core profile
-    //    if (glewInit() != GLEW_OK) {
-    //        fprintf(stderr, "Failed to initialize GLEW\n");
-    //        getchar();
-    //        glfwTerminate();
-    //        return -1;
-    //    }
-
     // Ensure we can capture the escape key being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
     // Hide the mouse and enable unlimited mouvement
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Set the mouse at the center of the screen
     glfwPollEvents();
@@ -70,6 +65,30 @@ int main(void) {
     //Initialize glad
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         std::cerr << "Failed to initialize glad!" << std::endl;
+
+    //----------------------------------------------------------------------------------------------
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    // Enable Docking
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Multi-Viewport / Platform Windows
+    //io.ConfigViewportsNoAutoMerge = true;
+    //io.ConfigViewportsNoTaskBarIcon = true;
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsLight();
+
+    // Setup Platform/Renderer backends
+    const char* glsl_version = "#version 130";
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init(glsl_version);
+
+    //----------------------------------------------------------------------------------------------
 
     // Dark blue background
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
@@ -210,9 +229,11 @@ int main(void) {
         glUseProgram(programID);
 
         // Compute the MVP matrix from keyboard and mouse input
-        computeMatricesFromInputs();
-        glm::mat4 ProjectionMatrix = getProjectionMatrix();
-        glm::mat4 ViewMatrix = getViewMatrix();
+        //computeMatricesFromInputs();
+        //        glm::mat4 ProjectionMatrix = getProjectionMatrix();
+        //        glm::mat4 ViewMatrix = getViewMatrix();
+        glm::mat4 ProjectionMatrix = glm::mat4(1.0);
+        glm::mat4 ViewMatrix = glm::mat4(1.0);
         glm::mat4 ModelMatrix = glm::mat4(1.0);
         glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 
@@ -311,9 +332,31 @@ int main(void) {
 
         glDisableVertexAttribArray(0);
 
+        //Poll events
+        glfwPollEvents();
+
+        //-----------------------------------------------------------------------------------------
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        static bool show_demo_window = true;
+        ImGui::ShowDemoWindow(&show_demo_window);
+
+        //create our ImGui window
+        ImGui::Begin("Scene Window");
+        ImGui::GetWindowDrawList()->AddImage((void*)renderedTexture, ImVec2(0, 0), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::End();
+
+        // Rendering
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        //-----------------------------------------------------------------------------------------
+
         // Swap buffers
         glfwSwapBuffers(window);
-        glfwPollEvents();
 
     }  // Check if the ESC key was pressed or the window was closed
     while (glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
