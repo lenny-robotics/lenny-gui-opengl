@@ -12,6 +12,10 @@
 
 namespace lenny::gui {
 
+GLuint FramebufferName = 0;
+GLuint renderedTexture;
+GLuint depthrenderbuffer;
+
 Application::Application(const std::string &title) {
     initializeGLFW(title);
     initializeOpenGL();
@@ -21,6 +25,44 @@ Application::Application(const std::string &title) {
     setCameraAspectRatio();
     Shaders::initialize();
     setGuiAndRenderer();
+
+    //--------------------------------------------------------------------------------
+    // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
+    glGenFramebuffers(1, &FramebufferName);
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+
+    // The texture we're going to render to
+    glGenTextures(1, &renderedTexture);
+
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, renderedTexture);
+
+    // Give an empty image to OpenGL ( the last "0" means "empty" )
+    const auto [windowWidth, windowHeight] = getCurrentWindowSize();
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, windowWidth, windowHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+    // Poor filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    // The depth buffer
+    glGenRenderbuffers(1, &depthrenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, windowWidth, windowHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+
+    // Set "renderedTexture" as our colour attachement #0
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
+
+    // Set the list of draw buffers.
+    GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, DrawBuffers);  // "1" is the size of DrawBuffers
+
+    // Always check that our framebuffer is ok
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        return;
 }
 
 Application::~Application() {
@@ -36,6 +78,11 @@ Application::~Application() {
     //Terminate glfw
     glfwDestroyWindow(this->glfwWindow);
     glfwTerminate();
+
+    //-----------------------------------------------------------------------------------
+    glDeleteFramebuffers(1, &FramebufferName);
+    glDeleteTextures(1, &renderedTexture);
+    glDeleteRenderbuffers(1, &depthrenderbuffer);
 }
 
 void Application::initializeGLFW(const std::string &title) {
@@ -260,7 +307,9 @@ void Application::run() {
             process();
 
         //Draw
+        prepareToDraw();
         draw();
+        wrapUpDraw();
 
         //Swap glfw buffers
         glfwSwapBuffers(this->glfwWindow);
@@ -425,11 +474,14 @@ void Application::stopProcess() {
 
 void Application::draw() {
     //--- OpenGL
+    // Render to framebuffer
+    const auto [windowWidth, windowHeight] = getCurrentWindowSize();  //ToDo: Size of scene window...
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+    glViewport(0, 0, windowWidth, windowHeight);
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     Shaders::update(camera, light);
-    prepareToDraw();
 
     if (showGround)
         ground.drawScene();
@@ -437,22 +489,29 @@ void Application::draw() {
         Renderer::I->drawCoordinateSystem(Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), 0.1, 0.01);
     drawScene();
 
-    wrapUpDraw();
-
     //--- ImGui
+    // Render to glfw
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, windowWidth, windowHeight);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     // Background window
-    //    const auto [pos_x, pos_y] = getCurrentWindowPosition();
-    //    const auto [width, height] = getCurrentWindowSize();
-    //    ImGui::SetNextWindowPos(ImVec2(pos_x, pos_y), ImGuiCond_Always);
-    //    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
-    //    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-    //    static bool isOpen = true;
-    //    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
-    //    ImGui::End();
+//    const auto [windowPosX, windowPosY] = getCurrentWindowPosition();
+//    ImGui::SetNextWindowPos(ImVec2(windowPosX, windowPosY), ImGuiCond_Always);
+//    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
+//    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+//    static bool isOpen = true;
+//    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+//    ImGui::End();
+
+    ImGui::Begin("Scene Window");
+    ImGui::GetWindowDrawList()->AddImage((void *)renderedTexture, ImVec2(0, 0), ImVec2(windowWidth, windowHeight), ImVec2(0, 1), ImVec2(1, 0));
+    ImGui::End();
 
     if (showFPS)
         drawFPS();
