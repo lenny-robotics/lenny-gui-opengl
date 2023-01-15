@@ -13,7 +13,10 @@ public:
 
     void draw();
 
-public: //ToDo: Private?
+public:  //ToDo: Private?
+    float pos_x, pos_y;
+    float size_x, size_y;
+    const float width, height;
     const std::string description;
     uint frameBuffer;
     uint texture;

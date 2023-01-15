@@ -430,10 +430,20 @@ void Application::stopProcess() {
 
 void Application::draw() {
     //--- OpenGL
+
+    //    // "Bind" the newly created texture : all future texture functions will modify this texture
+    //    glBindTexture(GL_TEXTURE_2D, scene->texture);
+    //
+    //    // Give an empty image to OpenGL ( the last "0" means "empty" )
+    //    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, scene->width, scene->height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
     // Render to framebuffer
-    const auto [windowWidth, windowHeight] = getCurrentWindowSize();  //ToDo: Size of scene window...
+    const auto [windowWidth, windowHeight] = getCurrentWindowSize();
     glBindFramebuffer(GL_FRAMEBUFFER, scene->frameBuffer);
-    glViewport(0, 0, windowWidth, windowHeight);
+    glViewport(scene->pos_x, scene->pos_y, scene->size_x, scene->size_y);
+    camera.setAspectRatio(scene->size_x / scene->size_y);
+    LENNY_LOG_DEBUG("Aspect Ratio: %lf", scene->size_x / scene->size_y)
+
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 

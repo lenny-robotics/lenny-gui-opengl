@@ -5,7 +5,8 @@
 
 namespace lenny::gui {
 
-Scene::Scene(const std::string& description, const int& width, const int& height) : description(description) {
+Scene::Scene(const std::string& description, const int& width, const int& height)
+    : description(description), pos_x(0.f), pos_y(0.f), size_x(width), size_y(height), width(width), height(height) {
     // The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
     glGenFramebuffers(1, &frameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
@@ -36,8 +37,8 @@ Scene::Scene(const std::string& description, const int& width, const int& height
 
     //ToDo: This is probably something that needs to be shifted into the application...
     // Set the list of draw buffers.
-    GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
-    glDrawBuffers(1, DrawBuffers);  // "1" is the size of DrawBuffers
+    GLenum drawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, drawBuffers);  // "1" is the size of drawBuffers
 
     // Always check that our framebuffer is ok
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -52,8 +53,15 @@ Scene::~Scene() {
 
 void Scene::draw() {
     ImGui::Begin(description.c_str());
-    ImGui::GetWindowPos();
-    ImGui::GetWindowDrawList()->AddImage((void*)texture, ImGui::GetWindowPos(), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+    const ImVec2 pos = ImGui::GetWindowPos();
+    const ImVec2 size = ImGui::GetWindowSize();
+    pos_x = pos.x;
+    pos_y = -pos.y;
+    size_x = size.x;
+    size_y = width - size.y;
+    LENNY_LOG_DEBUG("%lf, %lf, %lf, %lf", pos_x, pos_y, size_x, size_y)
+
+    ImGui::GetWindowDrawList()->AddImage((void*)texture, ImVec2(0, 0), ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
     ImGui::End();
 }
 
