@@ -81,10 +81,6 @@ void Application::initializeGLFW(const std::string &title) {
 
     //Disable waiting for framerate of glfw window
     glfwSwapInterval(0);
-
-    //Initialize glad
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-        LENNY_LOG_ERROR("Failed to initialize glad!");
 }
 
 inline void GLAPIENTRY GLCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
@@ -93,6 +89,10 @@ inline void GLAPIENTRY GLCallback(GLenum source, GLenum type, GLuint id, GLenum 
 }
 
 void Application::initializeOpenGL() {
+    //Initialize glad
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+        LENNY_LOG_ERROR("Failed to initialize glad!");
+
     // Enable error callback
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(GLCallback, 0);
