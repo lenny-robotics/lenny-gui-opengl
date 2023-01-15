@@ -16,7 +16,7 @@ Application::Application(const std::string &title) {
     initializeGLFW(title);
     initializeOpenGL();
     initializeImGui();
-    setCallbacks();
+    setCallbacks();  //ToDo: This seems to mess with the viewport settings of imgui
     glfwMaximizeWindow(this->glfwWindow);
     setCameraAspectRatio();
     Shaders::initialize();
@@ -28,10 +28,13 @@ Application::~Application() {
     stopProcess();
 
     //Terminate ImGui
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
 
     //Terminate glfw
+    glfwDestroyWindow(this->glfwWindow);
     glfwTerminate();
 }
 
@@ -40,26 +43,26 @@ void Application::initializeGLFW(const std::string &title) {
     if (!glfwInit())
         LENNY_LOG_ERROR("GLFW: initialization failed!");
 
-    //Get primary monitor
-    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-    if (!monitor)
-        LENNY_LOG_ERROR("GLFW: primary monitor could not be found!");
-
-    //Get video mode
-    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-    if (!mode)
-        LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
-
     //Set glfw window hints
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4.6);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4.6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 8);
 
+    //Get primary monitor
+    GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+    if (!monitor)
+        LENNY_LOG_ERROR("GLFW: primary monitor could not be found!");
+
     //Set pixel ratio
     float xScale, yScale;
     glfwGetMonitorContentScale(monitor, &xScale, &yScale);
     this->pixelRatio = xScale;
+
+    //Get video mode
+    const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+    if (!mode)
+        LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
 
     //Get window dimensions
     const int borderLeft = 2;
@@ -113,15 +116,19 @@ void Application::initializeImGui() {
     ImGuiIO &io = ImGui::GetIO();
     ImFontConfig cfg;
     cfg.SizePixels = 40.f * this->pixelRatio;
-    cfg.GlyphOffset.y = this->pixelRatio;  //Necessary?
+    cfg.GlyphOffset.y = this->pixelRatio;  //ToDo: Necessary?
     io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/Roboto-Medium.ttf", 15.f * this->pixelRatio, &cfg);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    //    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    //    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     //Set style
     ImGuiStyle &style = ImGui::GetStyle();
     style.ScaleAllSizes(this->pixelRatio);
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
 
     //Initialize
     ImGui_ImplGlfw_InitForOpenGL(this->glfwWindow, true);
@@ -245,6 +252,9 @@ void Application::setCameraAspectRatio() {
 void Application::run() {
     tools::Timer timer;
     while (!glfwWindowShouldClose(this->glfwWindow)) {
+        //Poll IO events (keyboard, mouse, etc.)
+        glfwPollEvents();
+
         //Process
         if (!useSeparateProcessThread && processIsRunning)
             process();
@@ -252,9 +262,8 @@ void Application::run() {
         //Draw
         draw();
 
-        //Swap glfw buffers and poll IO events (keyboard, mouse, etc.)
+        //Swap glfw buffers
         glfwSwapBuffers(this->glfwWindow);
-        glfwPollEvents();
 
         //Limit frame rate
         if (limitFramerate && (1.0 / targetFramerate) > timer.time())
@@ -264,9 +273,6 @@ void Application::run() {
         currentFramerate = 1.0 / timer.time();
         timer.restart();
     }
-
-    //Terminate glfw
-    glfwTerminate();
 }
 
 void Application::drawGui() {
@@ -324,8 +330,8 @@ void Application::drawFPS() {
     }
 
     const auto [width, height] = getCurrentWindowSize();
-    ImGui::SetNextWindowPos(ImVec2(width - pixelRatio * 200, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(pixelRatio * 200, pixelRatio * 80), ImGuiCond_Always);
+    ImGui::SetNextWindowPos(ImVec2(width - pixelRatio * 200, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(pixelRatio * 200, pixelRatio * 80), ImGuiCond_Once);
     ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
     char title[100];
     sprintf(title, "FPS: %.2f###FPS", drawFramerate);
@@ -438,18 +444,31 @@ void Application::draw() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    // Background window
+    //    const auto [pos_x, pos_y] = getCurrentWindowPosition();
+    //    const auto [width, height] = getCurrentWindowSize();
+    //    ImGui::SetNextWindowPos(ImVec2(pos_x, pos_y), ImGuiCond_Always);
+    //    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+    //    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+    //    static bool isOpen = true;
+    //    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    //    ImGui::End();
+
     if (showFPS)
         drawFPS();
     if (showConsole)
         drawConsole();
     drawGui();
 
-    //ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    //    ImGui::UpdatePlatformWindows();
-    //    ImGui::RenderPlatformWindowsDefault();
-    //    glfwMakeContextCurrent(this->glfwWindow);
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        GLFWwindow *currentContext = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(currentContext);
+    }
 }
 
 }  // namespace lenny::gui
