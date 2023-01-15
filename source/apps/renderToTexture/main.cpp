@@ -73,15 +73,9 @@ int main(void) {
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;    // Enable Docking
-    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Multi-Viewport / Platform Windows
-    //io.ConfigViewportsNoAutoMerge = true;
-    //io.ConfigViewportsNoTaskBarIcon = true;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
     const char* glsl_version = "#version 130";
@@ -89,9 +83,6 @@ int main(void) {
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     //----------------------------------------------------------------------------------------------
-
-    // Dark blue background
-    glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
     // Enable depth test
     glEnable(GL_DEPTH_TEST);
@@ -133,7 +124,6 @@ int main(void) {
     indexVBO(vertices, uvs, normals, indices, indexed_vertices, indexed_uvs, indexed_normals);
 
     // Load it into a VBO
-
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -202,25 +192,11 @@ int main(void) {
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         return false;
 
-    // The fullscreen quad's FBO
-    static const GLfloat g_quad_vertex_buffer_data[] = {
-        -1.0f, -1.0f, 0.0f, 1.0f, -1.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, 1.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-    };
-
-    GLuint quad_vertexbuffer;
-    glGenBuffers(1, &quad_vertexbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_quad_vertex_buffer_data), g_quad_vertex_buffer_data, GL_STATIC_DRAW);
-
-    // Create and compile our GLSL program from the shaders
-    GLuint quad_programID =
-        LoadShaders(LENNY_GUI_RENDERTOTEXTUREAPP_FOLDER "/Passthrough.vertexshader", LENNY_GUI_RENDERTOTEXTUREAPP_FOLDER "/Texture.fragmentshader");
-    GLuint texID = glGetUniformLocation(quad_programID, "renderedTexture");
-
     do {
         // Render to our framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
         glViewport(0, 0, windowWidth, windowHeight);  // Render on the whole framebuffer, complete from the lower left corner to the upper right
+        glClearColor(0.0f, 0.0f, 0.4f, 0.0f);         // Dark blue background
 
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -229,11 +205,11 @@ int main(void) {
         glUseProgram(programID);
 
         // Compute the MVP matrix from keyboard and mouse input
-        //computeMatricesFromInputs();
-        //        glm::mat4 ProjectionMatrix = getProjectionMatrix();
-        //        glm::mat4 ViewMatrix = getViewMatrix();
-        glm::mat4 ProjectionMatrix = glm::mat4(1.0);
-        glm::mat4 ViewMatrix = glm::mat4(1.0);
+        computeMatricesFromInputs();
+        glm::mat4 ProjectionMatrix = getProjectionMatrix();
+        glm::mat4 ViewMatrix = getViewMatrix();
+        //        glm::mat4 ProjectionMatrix = glm::mat4(1.0);
+        //        glm::mat4 ViewMatrix = glm::mat4(1.0);
         glm::mat4 ModelMatrix = glm::mat4(1.0);
         glm::mat4 MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
 
@@ -299,38 +275,15 @@ int main(void) {
         glDisableVertexAttribArray(1);
         glDisableVertexAttribArray(2);
 
+        //---------------------------------------------------------------------------
         // Render to the screen
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // Render on the whole framebuffer, complete from the lower left corner to the upper right
         glViewport(0, 0, windowWidth, windowHeight);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
         // Clear the screen
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // Use our shader
-        glUseProgram(quad_programID);
-
-        // Bind our texture in Texture Unit 0
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, renderedTexture);
-        // Set our "renderedTexture" sampler to use Texture Unit 0
-        glUniform1i(texID, 0);
-
-        // 1rst attribute buffer : vertices
-        glEnableVertexAttribArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, quad_vertexbuffer);
-        glVertexAttribPointer(0,         // attribute 0. No particular reason for 0, but must match the layout in the shader.
-                              3,         // size
-                              GL_FLOAT,  // type
-                              GL_FALSE,  // normalized?
-                              0,         // stride
-                              (void*)0   // array buffer offset
-        );
-
-        // Draw the triangles !
-        glDrawArrays(GL_TRIANGLES, 0, 6);  // 2*3 indices starting at 0 -> 2 triangles
-
-        glDisableVertexAttribArray(0);
 
         //Poll events
         glfwPollEvents();
@@ -346,7 +299,7 @@ int main(void) {
 
         //create our ImGui window
         ImGui::Begin("Scene Window");
-        ImGui::GetWindowDrawList()->AddImage((void*)renderedTexture, ImVec2(0, 0), ImGui::GetWindowSize(), ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::GetWindowDrawList()->AddImage((void*)renderedTexture, ImVec2(0, 0), ImVec2(windowWidth, windowHeight), ImVec2(0, 1), ImVec2(1, 0));
         ImGui::End();
 
         // Rendering
@@ -372,7 +325,6 @@ int main(void) {
     glDeleteFramebuffers(1, &FramebufferName);
     glDeleteTextures(1, &renderedTexture);
     glDeleteRenderbuffers(1, &depthrenderbuffer);
-    glDeleteBuffers(1, &quad_vertexbuffer);
     glDeleteVertexArrays(1, &VertexArrayID);
 
     // Close OpenGL window and terminate GLFW
