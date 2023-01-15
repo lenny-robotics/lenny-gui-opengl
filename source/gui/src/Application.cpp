@@ -24,11 +24,8 @@ Application::Application(const std::string &title) {
 }
 
 Application::~Application() {
-    //Terminate process
-    if (useSeparateProcessThread && processIsRunning) {
-        processIsRunning = false;
-        processThread.join();
-    }
+    //Stop process
+    stopProcess();
 
     //Terminate ImGui
     ImPlot::DestroyContext();
@@ -53,15 +50,6 @@ void Application::initializeGLFW(const std::string &title) {
     if (!mode)
         LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
 
-    //Set window dimensions
-    const int borderLeft = 2;
-    const int borderTop = 70;
-    const int borderRight = 2;
-    const int borderBottom = 105;
-
-    this->width = mode->width - borderLeft - borderRight;
-    this->height = mode->height - borderTop - borderBottom;
-
     //Set glfw window hints
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4.6);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4.6);
@@ -73,8 +61,17 @@ void Application::initializeGLFW(const std::string &title) {
     glfwGetMonitorContentScale(monitor, &xScale, &yScale);
     this->pixelRatio = xScale;
 
+    //Get window dimensions
+    const int borderLeft = 2;
+    const int borderTop = 70;
+    const int borderRight = 2;
+    const int borderBottom = 105;
+
+    const int width = mode->width - borderLeft - borderRight;
+    const int height = mode->height - borderTop - borderBottom;
+
     //Create window
-    this->glfwWindow = glfwCreateWindow(this->width, this->height, title.c_str(), nullptr, nullptr);
+    this->glfwWindow = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!this->glfwWindow)
         LENNY_LOG_ERROR("GLFW: Failed to create window!");
     glfwMakeContextCurrent(this->glfwWindow);
@@ -119,6 +116,8 @@ void Application::initializeImGui() {
     cfg.GlyphOffset.y = this->pixelRatio;  //Necessary?
     io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/Roboto-Medium.ttf", 15.f * this->pixelRatio, &cfg);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    //    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    //    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     //Set style
     ImGuiStyle &style = ImGui::GetStyle();
@@ -147,10 +146,7 @@ void Application::setCallbacks() {
         //Special treatment for escape key (close application)
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         if (key == GLFW_KEY_ESCAPE) {
-            if (app->useSeparateProcessThread && app->processIsRunning) {
-                app->processIsRunning = false;
-                app->processThread.join();
-            }
+            app->stopProcess();
             glfwSetWindowShouldClose(window, GL_TRUE);
             return;
         }
@@ -242,7 +238,8 @@ void Application::setGuiAndRenderer() {
 }
 
 void Application::setCameraAspectRatio() {
-    camera.setAspectRatio((double)this->width / (double)this->height);
+    const auto [width, height] = getCurrentWindowSize();
+    camera.setAspectRatio((double)width / (double)height);
 }
 
 void Application::run() {
@@ -280,7 +277,7 @@ void Application::drawGui() {
     ImGui::SameLine();
 
     if (ImGui::ToggleButton("Play", &processIsRunning))
-        processCallback();
+        processIsRunning ? startProcess() : stopProcess();
 
     if (!processIsRunning) {
         ImGui::SameLine();
@@ -326,7 +323,8 @@ void Application::drawFPS() {
         timer.restart();
     }
 
-    ImGui::SetNextWindowPos(ImVec2(this->width - pixelRatio * 200, 0), ImGuiCond_Always);
+    const auto [width, height] = getCurrentWindowSize();
+    ImGui::SetNextWindowPos(ImVec2(width - pixelRatio * 200, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(pixelRatio * 200, pixelRatio * 80), ImGuiCond_Always);
     ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
     char title[100];
@@ -340,8 +338,9 @@ void Application::drawFPS() {
 }
 
 void Application::drawConsole() {
-    ImGui::SetNextWindowSize(ImVec2(this->width / 2, pixelRatio * 350), ImGuiCond_Once);
-    ImGui::SetNextWindowPos(ImVec2(this->width / 2, this->height - pixelRatio * 350), ImGuiCond_Once);
+    const auto [width, height] = getCurrentWindowSize();
+    ImGui::SetNextWindowSize(ImVec2(width / 2, pixelRatio * 350), ImGuiCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(width / 2, height - pixelRatio * 350), ImGuiCond_Once);
 
     ImGui::Begin("Console");
     const std::vector<std::pair<tools::Logger::COLOR, std::string>> &msgBuffer = tools::Logger::getMessageBuffer();
@@ -354,17 +353,26 @@ void Application::drawConsole() {
     ImGui::End();
 }
 
+std::pair<int, int> Application::getCurrentWindowPosition() const {
+    int pos_x, pos_y;
+    glfwGetWindowPos(this->glfwWindow, &pos_x, &pos_y);
+    return {pos_x, pos_y};
+}
+
+std::pair<int, int> Application::getCurrentWindowSize() const {
+    int width, height;
+    glfwGetFramebufferSize(this->glfwWindow, &width, &height);
+    return {width, height};
+}
+
 void Application::resizeWindowCallback(int width, int height) {
-    this->width = width;
-    this->height = height;
     glViewport(0, 0, width, height);
     camera.setAspectRatio((double)width / (double)height);
 }
 
 void Application::keyboardKeyCallback(int key, int action) {
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-        processIsRunning = !processIsRunning;
-        processCallback();
+        processIsRunning ? stopProcess() : startProcess();
     } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !processIsRunning) {
         process();
     }
@@ -387,14 +395,23 @@ void Application::baseProcess() {
         process();
 }
 
-void Application::processCallback() {
-    if (!useSeparateProcessThread)
+void Application::startProcess() {
+    if (processIsRunning)
         return;
 
-    if (processIsRunning) {
+    processIsRunning = true;
+    if (useSeparateProcessThread) {
         processThread = std::thread(&Application::baseProcess, this);
         LENNY_LOG_INFO("Process thread started...\n");
-    } else {
+    }
+}
+
+void Application::stopProcess() {
+    if (!processIsRunning)
+        return;
+
+    processIsRunning = false;
+    if (useSeparateProcessThread) {
         processThread.join();
         LENNY_LOG_INFO("Process thread terminated...\n");
     }
@@ -427,9 +444,12 @@ void Application::draw() {
         drawConsole();
     drawGui();
 
-    ImGui::EndFrame();
+    //ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    //    ImGui::UpdatePlatformWindows();
+    //    ImGui::RenderPlatformWindowsDefault();
+    //    glfwMakeContextCurrent(this->glfwWindow);
 }
 
 }  // namespace lenny::gui

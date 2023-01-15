@@ -51,12 +51,17 @@ private:
 
     //--- Process
     void baseProcess();
-    void processCallback();
+    void startProcess();
+    void stopProcess();
 
     //--- Drawing
     void draw();
     void drawFPS();
     void drawConsole();
+
+    //--- Helpers
+    std::pair<int, int> getCurrentWindowPosition() const;
+    std::pair<int, int> getCurrentWindowSize() const;
 
 protected:
     //--- Window
@@ -81,9 +86,8 @@ protected:
     bool showConsole = true;
 
 private:
-    //--- Window (values set in constructor)
+    //--- Window (set in constructor)
     GLFWwindow* glfwWindow = nullptr;
-    int width, height;
     float pixelRatio;
 
     //--- Framerate

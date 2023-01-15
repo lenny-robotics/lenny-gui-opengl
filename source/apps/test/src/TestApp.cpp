@@ -9,7 +9,7 @@ namespace lenny {
 
 TestApp::TestApp() : gui::Application("TestApp") {
     showGround = false;
-
+    
     plot.addLineSpec({"x", [](const Eigen::Vector3d& d) { return (float)d.x(); }});
     plot.addLineSpec({"y", [](const Eigen::Vector3d& d) { return (float)d.y(); }});
     plot.addLineSpec({"z", [](const Eigen::Vector3d& d) { return (float)d.z(); }});
