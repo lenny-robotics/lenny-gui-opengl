@@ -16,14 +16,14 @@ Application::Application(const std::string &title) {
     initializeGLFW(title);
     initializeOpenGL();
     initializeImGui();
-    setCallbacks();  //ToDo: This seems to mess with the viewport settings of imgui
+    setCallbacks();
     glfwMaximizeWindow(this->glfwWindow);
-    setCameraAspectRatio();
     Shaders::initialize();
     setGuiAndRenderer();
 
     const auto [width, height] = getCurrentWindowSize();
-    scene = std::make_unique<Scene>("Scene", width, height);
+    scenes.emplace_back("Scene-1", width, height);
+    //scenes.emplace_back("Scene-2", width, height);
 }
 
 Application::~Application() {
@@ -88,7 +88,7 @@ void Application::initializeGLFW(const std::string &title) {
 
 inline void GLAPIENTRY GLCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
     if (type == GL_DEBUG_TYPE_ERROR)
-        LENNY_LOG_WARNING("GL CALLBACK ERROR: %s type = 0x%x, severity = 0x%x, message = %s", type, severity, message);
+        LENNY_LOG_WARNING("GL CALLBACK ERROR: type = '0x%x', severity = '0x%x', message = '%s'", type, severity, message);
 }
 
 void Application::initializeOpenGL() {
@@ -125,6 +125,8 @@ void Application::initializeImGui() {
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+
     //Set style
     ImGuiStyle &style = ImGui::GetStyle();
     style.ScaleAllSizes(this->pixelRatio);
@@ -153,52 +155,36 @@ void Application::setCallbacks() {
 
     //Keyboard key
     glfwSetKeyCallback(this->glfwWindow, [](GLFWwindow *window, int key, int scancode, int action, int mods) {
-        //Special treatment for escape key (close application)
+        //ImGui
+        ImGuiIO &io = ImGui::GetIO();
+        if (io.WantCaptureKeyboard || io.WantTextInput)
+            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         if (key == GLFW_KEY_ESCAPE) {
             app->stopProcess();
             glfwSetWindowShouldClose(window, GL_TRUE);
             return;
         }
-
-        //Update camera parameters
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->camera.updateKeyboardParameters(key, action);
-
-        //ImGui
-        ImGuiIO &io = ImGui::GetIO();
-        if (io.WantCaptureKeyboard || io.WantTextInput) {
-            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-            return;
-        }
-
-        //Call app callback function
         if (action == GLFW_PRESS || action == GLFW_RELEASE)
             app->keyboardKeyCallback(key, action);
     });
 
     //Mouse button
     glfwSetMouseButtonCallback(this->glfwWindow, [](GLFWwindow *window, int button, int action, int mods) {
-        //Get app parameters
-        Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        double xPos, yPos;
-        glfwGetCursorPos(window, &xPos, &yPos);
-
-        //Update camera parameters
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->camera.updateMouseButtonParameters(xPos, yPos, button, action);
-
         //ImGui
         ImGuiIO &io = ImGui::GetIO();
-        io.AddMouseButtonEvent(button, (action == GLFW_PRESS));
-        if (io.WantCaptureMouse) {
+        if (io.WantCaptureMouse)
             ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-            return;
-        }
 
-        //Call app callback function
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
+        //App
+        Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
+        if (action == GLFW_PRESS || action == GLFW_RELEASE) {
+            double xPos, yPos;
+            glfwGetCursorPos(window, &xPos, &yPos);
             app->mouseButtonCallback(xPos, yPos, button, action);
+        }
     });
 
     //Mouse move
@@ -206,11 +192,8 @@ void Application::setCallbacks() {
         //ImGui
         ImGuiIO &io = ImGui::GetIO();
         io.AddMousePosEvent((float)xPos, (float)yPos);
-        if (io.WantCaptureMouse) {
-            return;
-        }
 
-        //Application
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         app->mouseMoveCallback(xPos, yPos);
     });
@@ -219,19 +202,17 @@ void Application::setCallbacks() {
     glfwSetScrollCallback(this->glfwWindow, [](GLFWwindow *window, double xOffset, double yOffset) {
         //ImGui
         ImGuiIO &io = ImGui::GetIO();
-        io.AddMouseWheelEvent((float)xOffset, (float)yOffset);
-        if (io.WantCaptureMouse) {
+        if (io.WantCaptureMouse)
             ImGui_ImplGlfw_ScrollCallback(window, xOffset, yOffset);
-            return;
-        }
 
-        //Application
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         app->mouseScrollCallback(xOffset, yOffset);
     });
 
     //File drop
     glfwSetDropCallback(this->glfwWindow, [](GLFWwindow *window, int count, const char **filenames) {
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         app->fileDropCallback(count, filenames);
     });
@@ -245,11 +226,6 @@ void Application::setGuiAndRenderer() {
     //Renderer
     tools::Renderer::I.release();
     tools::Renderer::I = std::make_unique<gui::Renderer>();
-}
-
-void Application::setCameraAspectRatio() {
-    const auto [width, height] = getCurrentWindowSize();
-    camera.setAspectRatio((double)width / (double)height);
 }
 
 void Application::run() {
@@ -301,27 +277,14 @@ void Application::drawGui() {
         restart();
 
     if (ImGui::TreeNode("Settings")) {
-        camera.drawGui();
-        light.drawGui();
-        ground.drawGui();
-
-        if (ImGui::Button("Print Settings")) {
-            camera.printSettings();
-            light.printSettings();
-            ground.printSettings();
-        }
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Drawing")) {
-        ImGui::Checkbox("Show Ground", &showGround);
-        ImGui::Checkbox("Show Origin", &showOrigin);
         ImGui::Checkbox("Show FPS", &showFPS);
         ImGui::Checkbox("Show Console", &showConsole);
 
         ImGui::TreePop();
     }
+
+    for (Scene &scene : scenes)
+        scene.drawGui();
 
     ImGui::End();
 }
@@ -377,11 +340,13 @@ std::pair<int, int> Application::getCurrentWindowSize() const {
 }
 
 void Application::resizeWindowCallback(int width, int height) {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, width, height);
-    camera.setAspectRatio((double)width / (double)height);
 }
 
 void Application::keyboardKeyCallback(int key, int action) {
+    for (Scene &scene : scenes)
+        scene.keyboardKeyCallback(key, action);
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
         processIsRunning ? stopProcess() : startProcess();
     } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !processIsRunning) {
@@ -389,12 +354,19 @@ void Application::keyboardKeyCallback(int key, int action) {
     }
 }
 
+void Application::mouseButtonCallback(double xPos, double yPos, int button, int action) {
+    for (Scene &scene : scenes)
+        scene.mouseButtonCallback(xPos, yPos, button, action);
+}
+
 void Application::mouseMoveCallback(double xPos, double yPos) {
-    camera.processMouseMove(xPos, yPos);
+    for (Scene &scene : scenes)
+        scene.mouseMoveCallback(xPos, yPos);
 }
 
 void Application::mouseScrollCallback(double xOffset, double yOffset) {
-    camera.processMouseScroll(xOffset, yOffset);
+    for (Scene &scene : scenes)
+        scene.mouseScrollCallback(xOffset, yOffset);
 }
 
 double Application::getDt() const {
@@ -429,60 +401,45 @@ void Application::stopProcess() {
 }
 
 void Application::draw() {
-    //--- OpenGL
-
-    //    // "Bind" the newly created texture : all future texture functions will modify this texture
-    //    glBindTexture(GL_TEXTURE_2D, scene->texture);
-    //
-    //    // Give an empty image to OpenGL ( the last "0" means "empty" )
-    //    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, scene->width, scene->height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-
-    // Render to framebuffer
+    //Prepare glfw
     const auto [windowWidth, windowHeight] = getCurrentWindowSize();
-    glBindFramebuffer(GL_FRAMEBUFFER, scene->frameBuffer);
-    glViewport(scene->pos_x, scene->pos_y, scene->size_x, scene->size_y);
-    camera.setAspectRatio(scene->size_x / scene->size_y);
-    LENNY_LOG_DEBUG("Aspect Ratio: %lf", scene->size_x / scene->size_y)
-
-    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    Shaders::update(camera, light);
-
-    if (showGround)
-        ground.drawScene();
-    if (showOrigin)
-        Renderer::I->drawCoordinateSystem(Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), 0.1, 0.01);
-    drawScene();
-
-    //--- ImGui
-    // Render to glfw
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, windowWidth, windowHeight);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
 
+    //Prepare imgui
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    // Background window
-    const auto [windowPosX, windowPosY] = getCurrentWindowPosition();
-    ImGui::SetNextWindowPos(ImVec2(windowPosX, windowPosY), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
-    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-    static bool isOpen = true;
-    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
-    ImGui::End();
+    //    //Draw background window
+    //    const auto [windowPosX, windowPosY] = getCurrentWindowPosition();
+    //    ImGui::SetNextWindowPos(ImVec2(windowPosX, windowPosY), ImGuiCond_Always);
+    //    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
+    //    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+    //    static bool isOpen = true;
+    //    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    //    ImGui::End();
 
-    scene->draw();
+    //Prepare scene
+    for (Scene &scene : scenes) {
+        scene.prepareToDraw([&]() { drawScene(); });
+        scene.draw();
+    }
 
+    //Draw FPS
     if (showFPS)
         drawFPS();
+
+    //Draw console
     if (showConsole)
         drawConsole();
+
+    //Draw gui
     drawGui();
 
+    //Wrap up imgui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     ImGuiIO &io = ImGui::GetIO();

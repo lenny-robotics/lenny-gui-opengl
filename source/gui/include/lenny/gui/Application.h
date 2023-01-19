@@ -1,12 +1,8 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
-#include <lenny/gui/Camera.h>
-#include <lenny/gui/Ground.h>
-#include <lenny/gui/Light.h>
 #include <lenny/gui/Scene.h>
 
-#include <array>
 #include <thread>
 
 namespace lenny::gui {
@@ -33,7 +29,7 @@ protected:
     //--- Interaction
     virtual void resizeWindowCallback(int width, int height);
     virtual void keyboardKeyCallback(int key, int action);
-    virtual void mouseButtonCallback(double xPos, double yPos, int button, int action) {}
+    virtual void mouseButtonCallback(double xPos, double yPos, int button, int action);
     virtual void mouseMoveCallback(double xPos, double yPos);
     virtual void mouseScrollCallback(double xOffset, double yOffset);
     virtual void fileDropCallback(int count, const char** fileNames) {}
@@ -47,7 +43,6 @@ private:
     void initializeOpenGL();
     void initializeImGui();
     void setCallbacks();
-    void setCameraAspectRatio();
     void setGuiAndRenderer();
 
     //--- Process
@@ -65,9 +60,6 @@ private:
     std::pair<int, int> getCurrentWindowSize() const;
 
 protected:
-    //--- Window
-    std::array<double, 4> clearColor = {1.0, 1.0, 1.0, 1.0};
-
     //--- Framerate
     bool limitFramerate = true;
     double targetFramerate = 60.0;
@@ -76,14 +68,9 @@ protected:
     bool useSeparateProcessThread = false;
 
     //--- Members
-    Scene::UPtr scene;
-    Camera camera;  //ToDo: Shift into scene?
-    Light light;
-    Ground ground;
+    std::vector<Scene> scenes;
 
     //--- Settings
-    bool showGround = true;
-    bool showOrigin = true;
     bool showFPS = true;
     bool showConsole = true;
 

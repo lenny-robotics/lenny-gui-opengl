@@ -8,8 +8,6 @@
 namespace lenny {
 
 TestApp::TestApp() : gui::Application("TestApp") {
-    showGround = false;
-    
     plot.addLineSpec({"x", [](const Eigen::Vector3d& d) { return (float)d.x(); }});
     plot.addLineSpec({"y", [](const Eigen::Vector3d& d) { return (float)d.y(); }});
     plot.addLineSpec({"z", [](const Eigen::Vector3d& d) { return (float)d.z(); }});
@@ -103,43 +101,44 @@ void TestApp::drawGui() {
     }
 
     //--- ImGuizmo
-    if (selectedModel) {
-        ImGui::SetNextItemOpen(true);
-        if (ImGui::TreeNode("ImGuizmo")) {
-            ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, camera.getViewMatrix(),
-                                camera.getProjectionMatrix());
-
-            static float threshold = 0.8f;
-            static float targetError = 0.01;
-            static bool saveToFile = false;
-            ImGui::SliderFloat("Threshold", &threshold, 0.f, 1.f);
-            ImGui::SliderFloat("Target Error", &targetError, 0.f, 1.f);
-            ImGui::Checkbox("Save To File", &saveToFile);
-            if (ImGui::Button("Simplify"))
-                selectedModel->mesh.simplify(threshold, targetError, saveToFile);
-
-            if (ImGui::Button("Export as OBJ"))
-                selectedModel->mesh.exportAsOBJ();
-
-            ImGui::TreePop();
-        }
-    }
+//    if (selectedModel) {
+//        ImGui::SetNextItemOpen(true);
+//        if (ImGui::TreeNode("ImGuizmo")) {
+//            ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scene->camera.getViewMatrix(),
+//                                scene->camera.getProjectionMatrix());
+//
+//            static float threshold = 0.8f;
+//            static float targetError = 0.01;
+//            static bool saveToFile = false;
+//            ImGui::SliderFloat("Threshold", &threshold, 0.f, 1.f);
+//            ImGui::SliderFloat("Target Error", &targetError, 0.f, 1.f);
+//            ImGui::Checkbox("Save To File", &saveToFile);
+//            if (ImGui::Button("Simplify"))
+//                selectedModel->mesh.simplify(threshold, targetError, saveToFile);
+//
+//            if (ImGui::Button("Export as OBJ"))
+//                selectedModel->mesh.exportAsOBJ();
+//
+//            ImGui::TreePop();
+//        }
+//    }
 
     ImGui::End();
 }
 
 void TestApp::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        const auto ray = camera.getRayFromScreenCoordinates(xPos, yPos);
-        selectedModel = nullptr;
-        for (Model& model : models) {
-            const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);
-            if (hitInfo.has_value()) {
-                selectedModel = &model;
-                break;
-            }
-        }
-    }
+//    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+//        const auto ray = scene->camera.getRayFromScreenCoordinates(xPos, yPos);
+//        selectedModel = nullptr;
+//        for (Model& model : models) {
+//            const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);
+//            if (hitInfo.has_value()) {
+//                selectedModel = &model;
+//                break;
+//            }
+//        }
+//    }
+    gui::Application::mouseButtonCallback(xPos, yPos, button, action);
 }
 
 void TestApp::fileDropCallback(int count, const char** fileNames) {
