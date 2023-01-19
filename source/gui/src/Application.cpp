@@ -22,8 +22,8 @@ Application::Application(const std::string &title) {
     setGuiAndRenderer();
 
     const auto [width, height] = getCurrentWindowSize();
-    scenes.emplace_back("Scene-1", width, height);
-    //scenes.emplace_back("Scene-2", width, height);
+    scenes.emplace_back(std::make_unique<Scene>("Scene-1", width, height));
+    scenes.emplace_back(std::make_unique<Scene>("Scene-2", width, height));
 }
 
 Application::~Application() {
@@ -283,8 +283,8 @@ void Application::drawGui() {
         ImGui::TreePop();
     }
 
-    for (Scene &scene : scenes)
-        scene.drawGui();
+    for (auto &scene : scenes)
+        scene->drawGui();
 
     ImGui::End();
 }
@@ -345,8 +345,8 @@ void Application::resizeWindowCallback(int width, int height) {
 }
 
 void Application::keyboardKeyCallback(int key, int action) {
-    for (Scene &scene : scenes)
-        scene.keyboardKeyCallback(key, action);
+    for (auto &scene : scenes)
+        scene->keyboardKeyCallback(key, action);
     if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
         processIsRunning ? stopProcess() : startProcess();
     } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !processIsRunning) {
@@ -355,18 +355,18 @@ void Application::keyboardKeyCallback(int key, int action) {
 }
 
 void Application::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-    for (Scene &scene : scenes)
-        scene.mouseButtonCallback(xPos, yPos, button, action);
+    for (auto &scene : scenes)
+        scene->mouseButtonCallback(xPos, yPos, button, action);
 }
 
 void Application::mouseMoveCallback(double xPos, double yPos) {
-    for (Scene &scene : scenes)
-        scene.mouseMoveCallback(xPos, yPos);
+    for (auto &scene : scenes)
+        scene->mouseMoveCallback(xPos, yPos);
 }
 
 void Application::mouseScrollCallback(double xOffset, double yOffset) {
-    for (Scene &scene : scenes)
-        scene.mouseScrollCallback(xOffset, yOffset);
+    for (auto &scene : scenes)
+        scene->mouseScrollCallback(xOffset, yOffset);
 }
 
 double Application::getDt() const {
@@ -422,11 +422,9 @@ void Application::draw() {
     //    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
     //    ImGui::End();
 
-    //Prepare scene
-    for (Scene &scene : scenes) {
-        scene.prepareToDraw([&]() { drawScene(); });
-        scene.draw();
-    }
+    //Draw scenes
+    for (auto &scene : scenes)
+        scene->draw([&]() { drawScene(); });
 
     //Draw FPS
     if (showFPS)

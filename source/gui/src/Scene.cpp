@@ -14,7 +14,7 @@ Scene::Scene(const std::string& description, const int& width, const int& height
     //Texture
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0); //ToDo: Alpha value?
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);  //ToDo: Alpha value?
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -31,12 +31,6 @@ Scene::Scene(const std::string& description, const int& width, const int& height
     //Always check that our framebuffer is ok
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         LENNY_LOG_ERROR("Something went wrong when initializing a frame buffer")
-
-    //Set camera aspect ratio
-    camera.setAspectRatio((double)width / (double)height);
-
-    //Update index
-    index++;
 }
 
 Scene::~Scene() {
@@ -45,14 +39,15 @@ Scene::~Scene() {
     glDeleteRenderbuffers(1, &renderBuffer);
 }
 
-void Scene::prepareToDraw(const std::function<void()>& f_drawScene) {
-    //Update window infos
+void Scene::draw(const std::function<void()>& f_drawScene) {
+    //Begin ImGui window
     ImGui::Begin(description.c_str());
+
+    //Gather window info
     const ImVec2 pos = ImGui::GetWindowPos();
     const ImVec2 size = ImGui::GetWindowSize();
     isSelected = ImGui::IsWindowHovered() && (fabs(pos.x - this->windowPos[0]) < 1e-5) && (fabs(pos.y - this->windowPos[1]) < 1e-5);
     this->windowPos = {pos.x, pos.y};
-    ImGui::End();
 
     //Update camera parameters
     camera.setAspectRatio(size.x / (width - size.y));
@@ -61,9 +56,7 @@ void Scene::prepareToDraw(const std::function<void()>& f_drawScene) {
     Shaders::update(camera, light);
 
     //Prepare frame buffer
-    LENNY_LOG_DEBUG("Before: %d", frameBuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-    LENNY_LOG_DEBUG("After: %d", frameBuffer);
     glViewport(pos.x, -pos.y, size.x, width - size.y);
     glEnable(GL_DEPTH_TEST);
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
@@ -82,11 +75,11 @@ void Scene::prepareToDraw(const std::function<void()>& f_drawScene) {
     //Unbind frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_DEPTH_TEST);
-}
 
-void Scene::draw() const {
-    ImGui::Begin(description.c_str());
+    //Draw texture
     ImGui::GetWindowDrawList()->AddImage((void*)texture, ImVec2(0, 0), ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
+
+    //Wrap up ImGui
     ImGui::End();
 }
 

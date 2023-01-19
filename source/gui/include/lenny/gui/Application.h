@@ -68,7 +68,7 @@ protected:
     bool useSeparateProcessThread = false;
 
     //--- Members
-    std::vector<Scene> scenes;
+    std::vector<Scene::UPtr> scenes;
 
     //--- Settings
     bool showFPS = true;
