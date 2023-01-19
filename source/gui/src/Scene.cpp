@@ -1,4 +1,12 @@
-#include <glad/glad.h>
+#ifdef WIN32
+#pragma warning(disable : 4312)
+#endif
+
+// clang-format off
+#include <glad/glad.h> //Glad needs to be included before glfw!
+#include <GLFW/glfw3.h>
+// clang-format on
+
 #include <lenny/gui/ImGui.h>
 #include <lenny/gui/Renderer.h>
 #include <lenny/gui/Scene.h>
@@ -14,7 +22,7 @@ Scene::Scene(const std::string& description, const int& width, const int& height
     //Texture
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);  //ToDo: Alpha value?
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -41,7 +49,8 @@ Scene::~Scene() {
 
 void Scene::draw(const std::function<void()>& f_drawScene) {
     //Begin ImGui window
-    ImGui::Begin(description.c_str());
+    static bool open = true;
+    ImGui::Begin(description.c_str(), &open, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
 
     //Gather window info
     const ImVec2 pos = ImGui::GetWindowPos();
@@ -50,15 +59,13 @@ void Scene::draw(const std::function<void()>& f_drawScene) {
     this->windowPos = {pos.x, pos.y};
 
     //Update camera parameters
-    camera.setAspectRatio(size.x / (width - size.y));
+    camera.setAspectRatio(size.x / size.y);
 
     //Update shader
     Shaders::update(camera, light);
 
     //Prepare frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-    glViewport(pos.x, -pos.y, size.x, width - size.y);
-    glEnable(GL_DEPTH_TEST);
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -68,16 +75,15 @@ void Scene::draw(const std::function<void()>& f_drawScene) {
     if (showOrigin)
         Renderer::I->drawCoordinateSystem(Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), 0.1, 0.01);
 
-    //Draw scene
+    //Render scene
     if (f_drawScene)
         f_drawScene();
 
     //Unbind frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_DEPTH_TEST);
 
     //Draw texture
-    ImGui::GetWindowDrawList()->AddImage((void*)texture, ImVec2(0, 0), ImVec2(width, height), ImVec2(0, 1), ImVec2(1, 0));
+    ImGui::Image((ImTextureID)texture, size, ImVec2(0, 1), ImVec2(1, 0));
 
     //Wrap up ImGui
     ImGui::End();
@@ -103,11 +109,13 @@ void Scene::drawGui() {
 }
 
 void Scene::keyboardKeyCallback(int key, int action) {
-    camera.updateKeyboardParameters(key, action);
+    if (isSelected)
+        camera.updateKeyboardParameters(key, action);
 }
 
 void Scene::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-    camera.updateMouseButtonParameters(xPos, yPos, button, action);
+    if (isSelected || (action == GLFW_RELEASE))
+        camera.updateMouseButtonParameters(xPos, yPos, button, action);
 }
 
 void Scene::mouseMoveCallback(double xPos, double yPos) {

@@ -405,7 +405,7 @@ void Application::draw() {
     const auto [windowWidth, windowHeight] = getCurrentWindowSize();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, windowWidth, windowHeight);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     //Prepare imgui
@@ -413,14 +413,14 @@ void Application::draw() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    //    //Draw background window
-    //    const auto [windowPosX, windowPosY] = getCurrentWindowPosition();
-    //    ImGui::SetNextWindowPos(ImVec2(windowPosX, windowPosY), ImGuiCond_Always);
-    //    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
-    //    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-    //    static bool isOpen = true;
-    //    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
-    //    ImGui::End();
+    //Draw background window
+//    const auto [windowPosX, windowPosY] = getCurrentWindowPosition();
+//    ImGui::SetNextWindowPos(ImVec2(windowPosX, windowPosY), ImGuiCond_Always);
+//    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
+//    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+//    static bool isOpen = true;
+//    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
+//    ImGui::End();
 
     //Draw scenes
     for (auto &scene : scenes)
