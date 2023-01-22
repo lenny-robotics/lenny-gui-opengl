@@ -344,11 +344,11 @@ void Application::drawConsole() {
     ImGui::SetNextWindowPos(ImVec2(this->width / 2, this->height - pixelRatio * 350), ImGuiCond_Once);
 
     ImGui::Begin("Console");
-    const std::vector<std::pair<tools::Logger::COLOR, std::string>> &msgBuffer = tools::Logger::getMessageBuffer();
+    const auto &msgBuffer = tools::Logger::getMessageBuffer();
     for (const auto &[color, msg] : msgBuffer) {
-        const Eigen::Vector3d rgb = tools::Logger::getColorVector(color);
-        ImGui::TextColored(ImVec4(rgb.x(), rgb.y(), rgb.z(), 1.0), "%s", msg.c_str());
-        if (msg.back() != '\n')
+        const auto rgb = tools::Logger::getColorArray(color);
+        ImGui::TextColored(ImVec4(rgb[0], rgb[1], rgb[2], 1.0), "%s", msg.c_str());
+        if (msg.length() != 0 && msg.back() != '\n')
             ImGui::SameLine(0.f, 0.f);
     }
     ImGui::End();
