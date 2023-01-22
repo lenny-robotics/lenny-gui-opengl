@@ -39,6 +39,9 @@ bool SliderVectorD(const char* label, Eigen::Matrix<double, Size, 1>& v, const E
 bool SliderOrientation(const char* label, Eigen::Matrix3d& R, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 bool SliderOrientation(const char* label, Eigen::QuaternionD& q, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 
+bool InputOrientation(const char* label, Eigen::Matrix3d& R, const char* format = "%.3f", int flags = 0);
+bool InputOrientation(const char* label, Eigen::QuaternionD& q, const char* format = "%.3f", int flags = 0);
+
 bool InputTransformation(const char* label, lenny::tools::Transformation& trafo, const char* format = "%.3f");
 
 bool ColorPicker3(const char* label, Eigen::Vector3d& color);

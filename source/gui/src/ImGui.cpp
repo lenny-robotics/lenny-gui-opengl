@@ -1,5 +1,6 @@
 #include <imgui_internal.h>
 #include <lenny/gui/ImGui.h>
+#include <lenny/tools/EulerAngleRigidBody.h>
 
 namespace ImGui {
 
@@ -18,23 +19,33 @@ IMGUI_API bool SliderUInt(const char* label, unsigned int* v, unsigned int v_min
 }
 
 bool SliderOrientation(const char* label, Eigen::Matrix3d& R, const char* format, ImGuiSliderFlags flags) {
-    bool t_x = false, t_y = false, t_z = false;
-    double bound = 0.01;
-    Eigen::Vector3d delta = Eigen::Vector3d::Zero();
-    bool t = SliderVectorD<3>(label, delta, -1.0 * bound * Eigen::Vector3d::Ones(), bound * Eigen::Vector3d::Ones(), format, flags);
-    if (t)
-        R = R * lenny::tools::utils::rotX(delta[0]) * lenny::tools::utils::rotY(delta[1]) * lenny::tools::utils::rotZ(delta[2]);
-    const Eigen::QuaternionD q(R);
-    ImGui::Text("w: %lf, x: %lf, y: %lf, z: %lf", q.w(), q.x(), q.y(), q.z());
-    return t;
+    Eigen::QuaternionD q(R);
+    const bool triggered = SliderOrientation(label, q, format, flags);
+    R = q.matrix();
+    return triggered;
 }
 
 bool SliderOrientation(const char* label, Eigen::QuaternionD& q, const char* format, ImGuiSliderFlags flags) {
-    Eigen::Matrix3d R(q);
-    bool val = SliderOrientation(label, R, format, flags);
-    q = Eigen::QuaternionD(R);
-    return val;
+    static lenny::tools::EulerAngleRigidBody rb;
+    Eigen::Vector6d state = rb.getStateFromTransformation(lenny::tools::Transformation(Eigen::Vector3d::Zero(), q));
+    bool triggered = false;
+    if (ImGui::TreeNode(label)) {
+        for (int i = 0; i < 3; i++) {
+            if (ImGui::SliderDouble(std::to_string(i).c_str(), &state[i + 3], -2.0 * PI, 2.0 * PI, format, flags))
+                triggered = true;
+        }
+        q = rb.getTransformationFromState(state).orientation;
+        ImGui::Text("w: %lf, x: %lf, y: %lf, z: %lf", q.w(), q.x(), q.y(), q.z());
+        ImGui::TreePop();
+    }
+    return triggered;
 }
+
+bool InputOrientation(const char* label, Eigen::Matrix3d& R, const char* format, int flags) {
+    
+}
+
+bool InputOrientation(const char* label, Eigen::QuaternionD& q, const char* format, int flags) {}
 
 bool InputTransformation(const char* label, lenny::tools::Transformation& trafo, const char* format) {
     bool trig_pos = false;
