@@ -121,6 +121,12 @@ void TestApp::drawGui() {
             if (ImGui::Button("Export as OBJ"))
                 selectedModel->mesh.exportAsOBJ();
 
+            tools::Transformation modelTransformation(selectedModel->position, selectedModel->orientation);
+            if (ImGui::InputTransformation("Model Transformation", modelTransformation)) {
+                selectedModel->position = modelTransformation.position;
+                selectedModel->orientation = modelTransformation.orientation;
+            }
+
             ImGui::TreePop();
         }
     }
