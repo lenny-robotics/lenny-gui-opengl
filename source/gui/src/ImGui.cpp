@@ -41,18 +41,35 @@ bool SliderOrientation(const char* label, Eigen::QuaternionD& q, const char* for
     return triggered;
 }
 
-bool InputOrientation(const char* label, Eigen::Matrix3d& R, const char* format, int flags) {
-    
+bool InputOrientation(const char* label, Eigen::Matrix3d& R, const char* format, ImGuiInputTextFlags flags) {
+    Eigen::QuaternionD q(R);
+    const bool triggered = InputOrientation(label, q, format, flags);
+    R = q.matrix();
+    return triggered;
 }
 
-bool InputOrientation(const char* label, Eigen::QuaternionD& q, const char* format, int flags) {}
+bool InputOrientation(const char* label, Eigen::QuaternionD& q, const char* format, ImGuiInputTextFlags flags) {
+    static lenny::tools::EulerAngleRigidBody rb;
+    Eigen::Vector6d state = rb.getStateFromTransformation(lenny::tools::Transformation(Eigen::Vector3d::Zero(), q));
+    bool triggered = false;
+    if (ImGui::TreeNode(label)) {
+        for (int i = 0; i < 3; i++) {
+            if (ImGui::InputDouble(std::to_string(i).c_str(), &state[i + 3], 0.0, 0.0, format, flags))
+                triggered = true;
+        }
+        q = rb.getTransformationFromState(state).orientation;
+        ImGui::Text("w: %lf, x: %lf, y: %lf, z: %lf", q.w(), q.x(), q.y(), q.z());
+        ImGui::TreePop();
+    }
+    return triggered;
+}
 
-bool InputTransformation(const char* label, lenny::tools::Transformation& trafo, const char* format) {
+bool InputTransformation(const char* label, lenny::tools::Transformation& trafo, const char* format, ImGuiInputTextFlags flags) {
     bool trig_pos = false;
     bool trig_rot = false;
     if (ImGui::TreeNode(label)) {
-        trig_pos = InputVectorD<3>("Position", trafo.position, format);
-        trig_rot = SliderOrientation("Orientation", trafo.orientation, format);
+        trig_pos = InputVectorD<3>("Position", trafo.position, format, flags);
+        trig_rot = InputOrientation("Orientation", trafo.orientation, format, flags);
 
         ImGui::TreePop();
     }
