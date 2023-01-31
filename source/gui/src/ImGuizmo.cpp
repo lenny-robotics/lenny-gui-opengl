@@ -10,6 +10,7 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
                const glm::mat4& cameraProjection) {
     //Setup menu
     ImGuizmo::BeginFrame();
+    ImGuizmo::SetDrawlist();
 
     //Setup operation
     static ImGuizmo::OPERATION currentOperation(ImGuizmo::TRANSLATE);
@@ -35,14 +36,14 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
     //Draw values in gui
     float matrixTranslation[3], matrixRotation[3], matrixScale[3];
     ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), matrixTranslation, matrixRotation, matrixScale);
-    ImGui::InputFloat3("Tr", matrixTranslation);
-    ImGui::InputFloat3("Rt", matrixRotation);
-    ImGui::InputFloat3("Sc", matrixScale);
+    ImGui::InputFloat3("Translation", matrixTranslation);
+    ImGui::InputFloat3("Rotation", matrixRotation);
+    ImGui::InputFloat3("Scale", matrixScale);
     ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, glm::value_ptr(transform));
 
     //Manipulate widget
-    ImGuiIO& io = ImGui::GetIO();
-    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+    ImVec2 size = ImGui::GetContentRegionAvail();
+    ImGuizmo::SetRect(0, 0, size.x, size.y);
     ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection), currentOperation, currentMode, glm::value_ptr(transform), nullptr,
                          nullptr, nullptr, nullptr);
 
