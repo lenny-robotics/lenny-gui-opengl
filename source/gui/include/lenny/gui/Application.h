@@ -52,7 +52,6 @@ private:
 
     //--- Drawing
     void draw();
-    void drawFPS();
     void drawConsole();
 
     //--- Helpers
@@ -71,13 +70,11 @@ protected:
     std::vector<Scene::UPtr> scenes;
 
     //--- Settings
-    bool showFPS = true;
     bool showConsole = true;
 
 private:
     //--- Window (set in constructor)
     GLFWwindow* glfwWindow = nullptr;
-    float pixelRatio;
 
     //--- Framerate
     double currentFramerate = targetFramerate;  //Framerate of drawing process (not for separate thread)

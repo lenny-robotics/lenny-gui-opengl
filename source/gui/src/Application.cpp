@@ -57,17 +57,12 @@ void Application::initializeGLFW(const std::string &title) {
     if (!monitor)
         LENNY_LOG_ERROR("GLFW: primary monitor could not be found!");
 
-    //Set pixel ratio
-    float xScale, yScale;
-    glfwGetMonitorContentScale(monitor, &xScale, &yScale);
-    this->pixelRatio = xScale;
-
     //Get video mode
     const GLFWvidmode *mode = glfwGetVideoMode(monitor);
     if (!mode)
         LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
 
-    //Get window dimensions
+    //Get window dimensions //ToDo: Is this still necessary?
     const int borderLeft = 2;
     const int borderTop = 70;
     const int borderRight = 2;
@@ -115,25 +110,56 @@ void Application::initializeImGui() {
     ImGui::CreateContext();
     ImPlot::CreateContext();
 
-    //Set font
+    //Set io
     ImGuiIO &io = ImGui::GetIO();
-    ImFontConfig cfg;
-    cfg.SizePixels = 40.f * this->pixelRatio;
-    cfg.GlyphOffset.y = this->pixelRatio;  //ToDo: Necessary?
-    io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/Roboto-Medium.ttf", 15.f * this->pixelRatio, &cfg);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
+    //Set font
+    float fontSize = 18.0f;
+    io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Bold.ttf", fontSize);
+    io.FontDefault = io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Regular.ttf", fontSize);
+
     //Set style
-    ImGuiStyle &style = ImGui::GetStyle();
-    style.ScaleAllSizes(this->pixelRatio);
+    ImGui::StyleColorsDark();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGuiStyle &style = ImGui::GetStyle();
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
+
+    //Set colors
+    auto &colors = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4{0.1f, 0.105f, 0.11f, 1.0f};
+
+    //Headers
+    colors[ImGuiCol_Header] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_HeaderHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_HeaderActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    //Buttons
+    colors[ImGuiCol_Button] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_ButtonHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_ButtonActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    //Frame BG
+    colors[ImGuiCol_FrameBg] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_FrameBgHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_FrameBgActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    //Tabs
+    colors[ImGuiCol_Tab] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabHovered] = ImVec4{0.38f, 0.3805f, 0.381f, 1.0f};
+    colors[ImGuiCol_TabActive] = ImVec4{0.28f, 0.2805f, 0.281f, 1.0f};
+    colors[ImGuiCol_TabUnfocused] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+
+    //Title
+    colors[ImGuiCol_TitleBg] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
 
     //Initialize
     ImGui_ImplGlfw_InitForOpenGL(this->glfwWindow, true);
@@ -257,8 +283,20 @@ void Application::run() {
 }
 
 void Application::drawGui() {
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
     ImGui::Begin("Main Menu");
+
+    static double drawFramerate = currentFramerate;
+    static tools::Timer timer;
+    if (timer.time() > 0.333) {
+        drawFramerate = currentFramerate;
+        timer.restart();
+    }
+    ImGui::Text("FPS: %.2f", drawFramerate);
+    ImGui::Checkbox("Limit FPS", &limitFramerate);
+    if (limitFramerate) {
+        ImGui::SameLine();
+        ImGui::InputDouble("Target FPS", &targetFramerate);
+    }
 
     ImGui::Text("Play:");
     ImGui::SameLine();
@@ -277,7 +315,6 @@ void Application::drawGui() {
         restart();
 
     if (ImGui::TreeNode("Settings")) {
-        ImGui::Checkbox("Show FPS", &showFPS);
         ImGui::Checkbox("Show Console", &showConsole);
 
         ImGui::TreePop();
@@ -289,38 +326,12 @@ void Application::drawGui() {
     ImGui::End();
 }
 
-void Application::drawFPS() {
-    static double drawFramerate = currentFramerate;
-    static tools::Timer timer;
-    if (timer.time() > 0.333) {
-        drawFramerate = currentFramerate;
-        timer.restart();
-    }
-
-    const auto [width, height] = getCurrentWindowSize();
-    ImGui::SetNextWindowPos(ImVec2(width - pixelRatio * 200, 0), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(pixelRatio * 200, pixelRatio * 80), ImGuiCond_Once);
-    ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
-    char title[100];
-    sprintf(title, "FPS: %.2f###FPS", drawFramerate);
-    ImGui::Begin(title);
-    ImGui::Checkbox("Limit FPS", &limitFramerate);
-    ImGui::SameLine(pixelRatio * 100);
-    if (limitFramerate)
-        ImGui::InputDouble("Target FPS", &targetFramerate);
-    ImGui::End();
-}
-
 void Application::drawConsole() {
-    const auto [width, height] = getCurrentWindowSize();
-    ImGui::SetNextWindowSize(ImVec2(width / 2, pixelRatio * 350), ImGuiCond_Once);
-    ImGui::SetNextWindowPos(ImVec2(width / 2, height - pixelRatio * 350), ImGuiCond_Once);
-
     ImGui::Begin("Console");
-    const std::vector<std::pair<tools::Logger::COLOR, std::string>> &msgBuffer = tools::Logger::getMessageBuffer();
+    const auto &msgBuffer = tools::Logger::getMessageBuffer();
     for (const auto &[color, msg] : msgBuffer) {
-        const Eigen::Vector3d rgb = tools::Logger::getColorVector(color);
-        ImGui::TextColored(ImVec4(rgb.x(), rgb.y(), rgb.z(), 1.0), "%s", msg.c_str());
+        const auto rgb = tools::Logger::getColorArray(color);
+        ImGui::TextColored(ImVec4(rgb[0], rgb[1], rgb[2], 1.0), "%s", msg.c_str());
         if (msg.back() != '\n')
             ImGui::SameLine(0.f, 0.f);
     }
@@ -413,22 +424,69 @@ void Application::draw() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    //Draw background window
-//    const auto [windowPosX, windowPosY] = getCurrentWindowPosition();
-//    ImGui::SetNextWindowPos(ImVec2(windowPosX, windowPosY), ImGuiCond_Always);
-//    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_Always);
-//    ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
-//    static bool isOpen = true;
-//    ImGui::Begin("GLFW", &isOpen, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus);
-//    ImGui::End();
+    //Setup dock space window
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGuiWindowFlags dockSpaceWindowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    dockSpaceWindowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    dockSpaceWindowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    static bool dockspaceOpen = true;
+    ImGui::Begin("DockSpace", &dockspaceOpen, dockSpaceWindowFlags);
+    ImGui::PopStyleVar(3);
+
+    // DockSpace
+    ImGuiIO &io = ImGui::GetIO();
+    ImGuiStyle &style = ImGui::GetStyle();
+    float minWinSizeX = style.WindowMinSize.x;
+    style.WindowMinSize.x = 370.0f;
+    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
+    }
+    style.WindowMinSize.x = minWinSizeX;
+
+    //Menu bar
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open Project...", "Ctrl+O")) {
+            }
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
+            }
+
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
+            }
+
+            if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) {
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Exit")) {
+            }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Script")) {
+            if (ImGui::MenuItem("Reload assembly", "Ctrl+R")) {
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
 
     //Draw scenes
     for (auto &scene : scenes)
         scene->draw([&]() { drawScene(); });
-
-    //Draw FPS
-    if (showFPS)
-        drawFPS();
 
     //Draw console
     if (showConsole)
@@ -437,10 +495,13 @@ void Application::draw() {
     //Draw gui
     drawGui();
 
+    //End for docking
+    ImGui::End();
+
     //Wrap up imgui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    ImGuiIO &io = ImGui::GetIO();
+    //ImGuiIO &io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         GLFWwindow *currentContext = glfwGetCurrentContext();
         ImGui::UpdatePlatformWindows();
