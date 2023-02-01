@@ -36,12 +36,6 @@ public:
     bool showGround = true;
     bool showOrigin = true;
 
-
-    //--- TMP
-    Eigen::Vector3d guizmoPosition = Eigen::Vector3d::Zero();
-    Eigen::QuaternionD guizmoOrientation = Eigen::QuaternionD::Identity();
-    Eigen::Vector3d guizmoScale = Eigen::Vector3d::Ones();
-
 private:
     const int width, height;
     std::array<float, 2> windowPos = {0.f, 0.f};

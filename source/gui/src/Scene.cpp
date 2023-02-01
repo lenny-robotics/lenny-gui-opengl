@@ -14,8 +14,6 @@
 #include <lenny/gui/Shaders.h>
 #include <lenny/tools/Logger.h>
 
-#include <glm/gtc/type_ptr.hpp>
-
 namespace lenny::gui {
 
 Scene::Scene(const std::string& description, const int& width, const int& height) : description(description), width(width), height(height) {
@@ -85,64 +83,6 @@ void Scene::draw(const std::function<void()>& f_drawScene) {
 
     //Draw texture
     ImGui::Image((ImTextureID)texture, size, ImVec2(0, 1), ImVec2(1, 0));
-
-    //Guizmo -> AFTER IMAGE!
-    {
-        //Setup menu
-        ImGuizmo::BeginFrame();
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist();
-
-        //Setup operation
-        static ImGuizmo::OPERATION currentOperation(ImGuizmo::TRANSLATE);
-        if (ImGui::RadioButton("Translate", currentOperation == ImGuizmo::TRANSLATE))
-            currentOperation = ImGuizmo::TRANSLATE;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Rotate", currentOperation == ImGuizmo::ROTATE))
-            currentOperation = ImGuizmo::ROTATE;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Scale", currentOperation == ImGuizmo::SCALE))
-            currentOperation = ImGuizmo::SCALE;
-
-        //Setup mode
-        static ImGuizmo::MODE currentMode(ImGuizmo::LOCAL);
-        if (currentOperation == ImGuizmo::SCALE)
-            currentMode = ImGuizmo::LOCAL;
-        else
-            currentMode = ImGuizmo::WORLD;
-
-        //Get glm transformation
-        glm::mat4 transform = lenny::gui::utils::getGLMTransform(guizmoPosition, guizmoOrientation, guizmoScale);
-
-        //Draw values in gui
-        float matrixTranslation[3], matrixRotation[3], matrixScale[3];
-        ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), matrixTranslation, matrixRotation, matrixScale);
-        ImGui::InputFloat3("Translation", matrixTranslation);
-        ImGui::InputFloat3("Rotation", matrixRotation);
-        ImGui::InputFloat3("Scale", matrixScale);
-        ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, glm::value_ptr(transform));
-
-        //Manipulate widget
-        auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-        auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-        auto viewportOffset = ImGui::GetWindowPos();
-        glm::vec2 m_ViewportBounds[2];
-        m_ViewportBounds[0] = {viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y};
-        m_ViewportBounds[1] = {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y};
-
-        ImGuizmo::SetRect(m_ViewportBounds[0].x, m_ViewportBounds[0].y, m_ViewportBounds[1].x - m_ViewportBounds[0].x,
-                          m_ViewportBounds[1].y - m_ViewportBounds[0].y);
-
-        ImGuizmo::Manipulate(glm::value_ptr(camera.getViewMatrix()), glm::value_ptr(camera.getProjectionMatrix()), currentOperation, currentMode,
-                             glm::value_ptr(transform), nullptr, nullptr, nullptr, nullptr);
-
-        //Recreate position, orientation and scale
-        ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), matrixTranslation, matrixRotation, matrixScale);
-        guizmoPosition << matrixTranslation[0], matrixTranslation[1], matrixTranslation[2];
-        guizmoOrientation = Eigen::QuaternionD(lenny::tools::utils::rotZ(TO_RAD(matrixRotation[2])) * lenny::tools::utils::rotY(TO_RAD(matrixRotation[1])) *
-                                               lenny::tools::utils::rotX(TO_RAD(matrixRotation[0])));
-        guizmoScale << matrixScale[0], matrixScale[1], matrixScale[2];
-    }
 
     //Update parameters
     const bool windowIsBeingMoved = (fabs(pos.x - this->windowPos[0]) > 1e-5) || (fabs(pos.y - this->windowPos[1]) > 1e-5);

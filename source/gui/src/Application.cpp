@@ -22,8 +22,8 @@ Application::Application(const std::string &title) {
     setGuiAndRenderer();
 
     const auto [width, height] = getCurrentWindowSize();
-    scenes.emplace_back(std::make_unique<Scene>("Scene-1", width, height));
-    scenes.emplace_back(std::make_unique<Scene>("Scene-2", width, height));
+    scenes.emplace_back(std::make_shared<Scene>("Scene-1", width, height));
+    scenes.emplace_back(std::make_shared<Scene>("Scene-2", width, height));
 }
 
 Application::~Application() {

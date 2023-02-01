@@ -6,11 +6,12 @@
 
 namespace ImGuizmo {
 
-void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen::Vector3d& scale, const glm::mat4& cameraView,
-               const glm::mat4& cameraProjection) {
-    //Setup menu
-    ImGuizmo::BeginFrame();
-    ImGuizmo::SetDrawlist();
+void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen::Vector3d& scale, const lenny::gui::Scene::CSPtr scene) {
+    //--- Transform components
+    glm::mat4 transform = lenny::gui::utils::getGLMTransform(position, orientation, scale);
+
+    //--- Draw settings gui
+    ImGui::Begin("ImGuizmo");
 
     //Setup operation
     static ImGuizmo::OPERATION currentOperation(ImGuizmo::TRANSLATE);
@@ -30,9 +31,6 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
     else
         currentMode = ImGuizmo::WORLD;
 
-    //Get glm transformation
-    glm::mat4 transform = lenny::gui::utils::getGLMTransform(position, orientation, scale);
-
     //Draw values in gui
     float matrixTranslation[3], matrixRotation[3], matrixScale[3];
     ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), matrixTranslation, matrixRotation, matrixScale);
@@ -41,13 +39,31 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
     ImGui::InputFloat3("Scale", matrixScale);
     ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, glm::value_ptr(transform));
 
-    //Manipulate widget
-    ImVec2 size = ImGui::GetContentRegionAvail();
-    ImGuizmo::SetRect(0, 0, size.x, size.y);
-    ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection), currentOperation, currentMode, glm::value_ptr(transform), nullptr,
-                         nullptr, nullptr, nullptr);
+    //Wrap up
+    ImGui::End();
 
-    //Recreate position, orientation and scale
+    //--- Draw manipulation gui
+    ImGui::Begin(scene->description.c_str());
+
+    //Setup imguizmo
+    ImGuizmo::BeginFrame();
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetDrawlist();
+
+    //Manipulate widget
+    const ImVec2 viewportMinRegion = ImGui::GetWindowContentRegionMin();
+    const ImVec2 viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+    const ImVec2 viewportOffset = ImGui::GetWindowPos();
+    const glm::vec2 viewportBounds[2] = {{viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y},
+                                         {viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y}};
+    ImGuizmo::SetRect(viewportBounds[0].x, viewportBounds[0].y, viewportBounds[1].x - viewportBounds[0].x, viewportBounds[1].y - viewportBounds[0].y);
+    ImGuizmo::Manipulate(glm::value_ptr(scene->camera.getViewMatrix()), glm::value_ptr(scene->camera.getProjectionMatrix()), currentOperation, currentMode,
+                         glm::value_ptr(transform), nullptr, nullptr, nullptr, nullptr);
+
+    //Wrap up
+    ImGui::End();
+
+    //--- Decompose components
     ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(transform), matrixTranslation, matrixRotation, matrixScale);
     position << matrixTranslation[0], matrixTranslation[1], matrixTranslation[2];
     orientation = Eigen::QuaternionD(lenny::tools::utils::rotZ(TO_RAD(matrixRotation[2])) * lenny::tools::utils::rotY(TO_RAD(matrixRotation[1])) *

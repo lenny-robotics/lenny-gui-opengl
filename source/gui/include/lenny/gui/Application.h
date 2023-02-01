@@ -67,7 +67,7 @@ protected:
     bool useSeparateProcessThread = false;
 
     //--- Members
-    std::vector<Scene::UPtr> scenes;
+    std::vector<Scene::SPtr> scenes;
 
     //--- Settings
     bool showConsole = true;

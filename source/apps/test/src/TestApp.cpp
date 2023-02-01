@@ -100,44 +100,26 @@ void TestApp::drawGui() {
         ImGui::TreePop();
     }
 
-    //--- ImGuizmo
-//    selectedModel = &models.at(0);
-//    if (selectedModel) {
-//        ImGui::SetNextItemOpen(true);
-//        ImGui::Begin("ImGuizmo");
-//        ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scenes.at(0)->camera.getViewMatrix(),
-//                            scenes.at(0)->camera.getProjectionMatrix());
-//
-//        static float threshold = 0.8f;
-//        static float targetError = 0.01;
-//        static bool saveToFile = false;
-//        ImGui::SliderFloat("Threshold", &threshold, 0.f, 1.f);
-//        ImGui::SliderFloat("Target Error", &targetError, 0.f, 1.f);
-//        ImGui::Checkbox("Save To File", &saveToFile);
-//        if (ImGui::Button("Simplify"))
-//            selectedModel->mesh.simplify(threshold, targetError, saveToFile);
-//
-//        if (ImGui::Button("Export as OBJ"))
-//            selectedModel->mesh.exportAsOBJ();
-//
-//        ImGui::End();
-//    }
-
     ImGui::End();
+
+    //--- ImGuizmo
+    selectedModel = &models.at(0);
+    if (selectedModel)
+        ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scenes.at(0));
 }
 
 void TestApp::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-//    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-//        const auto ray = scenes.at(0)->camera.getRayFromScreenCoordinates(xPos, yPos);
-//        selectedModel = nullptr;
-//        for (Model& model : models) {
-//            const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);
-//            if (hitInfo.has_value()) {
-//                selectedModel = &model;
-//                break;
-//            }
-//        }
-//    }
+    //    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    //        const auto ray = scenes.at(0)->camera.getRayFromScreenCoordinates(xPos, yPos);
+    //        selectedModel = nullptr;
+    //        for (Model& model : models) {
+    //            const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);
+    //            if (hitInfo.has_value()) {
+    //                selectedModel = &model;
+    //                break;
+    //            }
+    //        }
+    //    }
     gui::Application::mouseButtonCallback(xPos, yPos, button, action);
 }
 
