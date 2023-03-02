@@ -16,12 +16,12 @@ public:
     void process() override;
 
     //--- Drawing
-    void drawScene() const override;
+    void drawScene() const;
     void drawGui() override;
 
     //--- Interaction
-    void mouseButtonCallback(double xPos, double yPos, int button, int action) override;
-    void fileDropCallback(int count, const char** fileNames) override;
+    void mouseButtonCallback(double xPos, double yPos, int button, int action);
+    void fileDropCallback(int count, const char** fileNames);
 
 public:
     int consoleIter = 0;

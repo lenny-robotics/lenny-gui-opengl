@@ -48,16 +48,19 @@ Scene::~Scene() {
     glDeleteRenderbuffers(1, &renderBuffer);
 }
 
-void Scene::draw(const std::function<void()>& f_drawScene) {
+void Scene::draw() {
     //Begin ImGui window
     static bool open = true;
     ImGui::Begin(description.c_str(), &open, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+
+    //ToDo: Set initial size and position (and maybe docking?)
 
     //Gather window info
     const ImVec2 pos = ImGui::GetWindowPos();
     const ImVec2 size = ImGui::GetContentRegionAvail();
 
     //Update camera parameters
+    //ToDo: Should we shift this into window resize callback?
     camera.setAspectRatio(size.x / size.y);
 
     //Update shader
@@ -109,27 +112,51 @@ void Scene::drawGui() {
         }
 
         ImGui::TreePop();
+
+        if (f_drawGui)
+            f_drawGui();
     }
 }
 
+//ToDo: Are we sure we don't need to block some callback functions from time to time?
+//ToDo: Do we need to adapt the mouse position???
+
+void Scene::resizeWindowCallback(int width, int height) {
+    if (f_resizeWindowCallback)
+        f_resizeWindowCallback(width, height);
+}
+
 void Scene::keyboardKeyCallback(int key, int action) {
+    if (f_keyboardKeyCallback)
+        f_keyboardKeyCallback(key, action);
     if (!blockCameraUpdate)
         camera.updateKeyboardParameters(key, action);
 }
 
 void Scene::mouseButtonCallback(double xPos, double yPos, int button, int action) {
+    if (f_mouseButtonCallback)
+        f_mouseButtonCallback(xPos, yPos, button, action);
     if (!blockCameraUpdate || (action == GLFW_RELEASE))
         camera.updateMouseButtonParameters(xPos, yPos, button, action);
 }
 
 void Scene::mouseMoveCallback(double xPos, double yPos) {
+    if (f_mouseMoveCallback)
+        f_mouseMoveCallback(xPos, yPos);
     if (!blockCameraUpdate)
         camera.processMouseMove(xPos, yPos);
 }
 
 void Scene::mouseScrollCallback(double xOffset, double yOffset) {
+    if (f_mouseScrollCallback)
+        f_mouseScrollCallback(xOffset, yOffset);
     if (!blockCameraUpdate)
         camera.processMouseScroll(xOffset, yOffset);
+}
+
+void Scene::fileDropCallback(int count, const char** fileNames) {
+    if (f_fileDropCallback)
+        f_fileDropCallback(count, fileNames);
 }
 
 }  // namespace lenny::gui

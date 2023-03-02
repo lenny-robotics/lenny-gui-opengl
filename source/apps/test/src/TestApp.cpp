@@ -1,6 +1,5 @@
 #include "TestApp.h"
 
-#include <lenny/gui/ImGui.h>
 #include <lenny/gui/ImGuizmo.h>
 #include <lenny/gui/Renderer.h>
 #include <lenny/tools/Logger.h>
@@ -8,6 +7,12 @@
 namespace lenny {
 
 TestApp::TestApp() : gui::Application("TestApp") {
+    //Setup scene callbacks
+    scenes.back()->f_drawScene = [&]() -> void { drawScene(); };
+    scenes.back()->f_mouseButtonCallback = [&](double xPos, double yPos, int button, int action) -> void { mouseButtonCallback(xPos, yPos, button, action); };
+    scenes.back()->f_fileDropCallback = [&](int count, const char** fileNames) -> void { fileDropCallback(count, fileNames); };
+
+    //Add plot lines
     plot.addLineSpec({"x", [](const Eigen::Vector3d& d) { return (float)d.x(); }});
     plot.addLineSpec({"y", [](const Eigen::Vector3d& d) { return (float)d.y(); }});
     plot.addLineSpec({"z", [](const Eigen::Vector3d& d) { return (float)d.z(); }});
@@ -89,7 +94,7 @@ void TestApp::drawGui() {
     //--- ImGui
     gui::Application::drawGui();
 
-    ImGui::Begin("Main Menu");
+    ImGui::Begin("Menu");
 
     ImGui::ColorPicker4("Renderer Color", rendererColor);
     ImGui::Checkbox("Show Materials", &showMaterials);
@@ -103,24 +108,23 @@ void TestApp::drawGui() {
     ImGui::End();
 
     //--- ImGuizmo
-    selectedModel = &models.at(0);
+    //selectedModel = &models.at(0);
     if (selectedModel)
         ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scenes.at(0));
 }
 
 void TestApp::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-    //    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    //        const auto ray = scenes.at(0)->camera.getRayFromScreenCoordinates(xPos, yPos);
-    //        selectedModel = nullptr;
-    //        for (Model& model : models) {
-    //            const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);
-    //            if (hitInfo.has_value()) {
-    //                selectedModel = &model;
-    //                break;
-    //            }
-    //        }
-    //    }
-    gui::Application::mouseButtonCallback(xPos, yPos, button, action);
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        const auto ray = scenes.at(0)->camera.getRayFromScreenCoordinates(xPos, yPos);
+        selectedModel = nullptr;
+        for (Model& model : models) {
+            const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);
+            if (hitInfo.has_value()) {
+                selectedModel = &model;
+                break;
+            }
+        }
+    }
 }
 
 void TestApp::fileDropCallback(int count, const char** fileNames) {

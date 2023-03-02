@@ -18,24 +18,21 @@ public:
 protected:
     //--- Process
     virtual void restart() {}
-    virtual void process() {}
+    virtual void process() {} //ToDo: Should we enable several process threads? Or remove external thread here and make its own class out of it?
+    void startProcess();
+    void stopProcess();
 
     //--- Drawing
     virtual void prepareToDraw() {}
-    virtual void drawScene() const {}
     virtual void wrapUpDraw() {}
+    virtual void drawMenuBar();
     virtual void drawGui();
-
-    //--- Interaction
-    virtual void resizeWindowCallback(int width, int height);
-    virtual void keyboardKeyCallback(int key, int action);
-    virtual void mouseButtonCallback(double xPos, double yPos, int button, int action);
-    virtual void mouseMoveCallback(double xPos, double yPos);
-    virtual void mouseScrollCallback(double xOffset, double yOffset);
-    virtual void fileDropCallback(int count, const char** fileNames) {}
+    virtual void drawConsole();
 
     //--- Helpers
     double getDt() const;
+    std::pair<int, int> getCurrentWindowPosition() const;
+    std::pair<int, int> getCurrentWindowSize() const;
 
 private:
     //--- Initialization
@@ -47,16 +44,9 @@ private:
 
     //--- Process
     void baseProcess();
-    void startProcess();
-    void stopProcess();
 
     //--- Drawing
     void draw();
-    void drawConsole();
-
-    //--- Helpers
-    std::pair<int, int> getCurrentWindowPosition() const;
-    std::pair<int, int> getCurrentWindowSize() const;
 
 protected:
     //--- Framerate
@@ -70,6 +60,8 @@ protected:
     std::vector<Scene::SPtr> scenes;
 
     //--- Settings
+    bool showMenuBar = true;
+    bool showGui = true;
     bool showConsole = true;
 
 private:

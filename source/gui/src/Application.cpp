@@ -13,6 +13,7 @@
 namespace lenny::gui {
 
 Application::Application(const std::string &title) {
+    //Initialize everything
     initializeGLFW(title);
     initializeOpenGL();
     initializeImGui();
@@ -20,10 +21,8 @@ Application::Application(const std::string &title) {
     glfwMaximizeWindow(this->glfwWindow);
     Shaders::initialize();
     setGuiAndRenderer();
-
     const auto [width, height] = getCurrentWindowSize();
-    scenes.emplace_back(std::make_shared<Scene>("Scene-1", width, height));
-    scenes.emplace_back(std::make_shared<Scene>("Scene-2", width, height));
+    scenes.emplace_back(std::make_shared<Scene>("Main Scene", width, height));
 }
 
 Application::~Application() {
@@ -118,7 +117,7 @@ void Application::initializeImGui() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
     //Set font
-    float fontSize = 18.0f;
+    float fontSize = 18.0f;  //ToDo: Should we make this adaptable?
     io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Bold.ttf", fontSize);
     io.FontDefault = io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Regular.ttf", fontSize);
 
@@ -176,7 +175,12 @@ void Application::setCallbacks() {
     //Resize window
     glfwSetFramebufferSizeCallback(this->glfwWindow, [](GLFWwindow *window, int width, int height) {
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->resizeWindowCallback(width, height);
+        //Set viewport
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, width, height);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->resizeWindowCallback(width, height);
     });
 
     //Keyboard key
@@ -193,8 +197,17 @@ void Application::setCallbacks() {
             glfwSetWindowShouldClose(window, GL_TRUE);
             return;
         }
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->keyboardKeyCallback(key, action);
+        if (action == GLFW_PRESS || action == GLFW_RELEASE) {
+            //Process
+            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+                app->processIsRunning ? app->stopProcess() : app->startProcess();
+            } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !app->processIsRunning) {
+                app->process();
+            }
+            //Scene callbacks
+            for (auto &scene : app->scenes)
+                scene->keyboardKeyCallback(key, action);
+        }
     });
 
     //Mouse button
@@ -209,7 +222,9 @@ void Application::setCallbacks() {
         if (action == GLFW_PRESS || action == GLFW_RELEASE) {
             double xPos, yPos;
             glfwGetCursorPos(window, &xPos, &yPos);
-            app->mouseButtonCallback(xPos, yPos, button, action);
+            //Scene callbacks
+            for (auto &scene : app->scenes)
+                scene->mouseButtonCallback(xPos, yPos, button, action);
         }
     });
 
@@ -221,7 +236,9 @@ void Application::setCallbacks() {
 
         //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->mouseMoveCallback(xPos, yPos);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->mouseMoveCallback(xPos, yPos);
     });
 
     //Mouse scroll
@@ -233,14 +250,18 @@ void Application::setCallbacks() {
 
         //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->mouseScrollCallback(xOffset, yOffset);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->mouseScrollCallback(xOffset, yOffset);
     });
 
     //File drop
     glfwSetDropCallback(this->glfwWindow, [](GLFWwindow *window, int count, const char **filenames) {
         //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->fileDropCallback(count, filenames);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->fileDropCallback(count, filenames);
     });
 }
 
@@ -282,8 +303,45 @@ void Application::run() {
     }
 }
 
+void Application::drawMenuBar() {
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Open Project...", "Ctrl+O")) {
+            }
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
+            }
+
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
+            }
+
+            if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) {
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Exit")) {
+            }
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Script")) {
+            if (ImGui::MenuItem("Reload assembly", "Ctrl+R")) {
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
+}
+
 void Application::drawGui() {
-    ImGui::Begin("Main Menu");
+    //ToDo: Shift this to Menu Bar
+
+    ImGui::Begin("Menu");
 
     static double drawFramerate = currentFramerate;
     static tools::Timer timer;
@@ -312,7 +370,7 @@ void Application::drawGui() {
 
     ImGui::SameLine();
     if (ImGui::Button("Restart"))
-        restart();
+        restart(); //ToDo: Restart needs to be handled properly in case separate thread is executed!
 
     if (ImGui::TreeNode("Settings")) {
         ImGui::Checkbox("Show Console", &showConsole);
@@ -332,7 +390,7 @@ void Application::drawConsole() {
     for (const auto &[color, msg] : msgBuffer) {
         const auto rgb = tools::Logger::getColorArray(color);
         ImGui::TextColored(ImVec4(rgb[0], rgb[1], rgb[2], 1.0), "%s", msg.c_str());
-        if (msg.back() != '\n')
+        if (msg.length() > 0 && msg.back() != '\n')
             ImGui::SameLine(0.f, 0.f);
     }
     ImGui::End();
@@ -350,36 +408,6 @@ std::pair<int, int> Application::getCurrentWindowSize() const {
     return {width, height};
 }
 
-void Application::resizeWindowCallback(int width, int height) {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, width, height);
-}
-
-void Application::keyboardKeyCallback(int key, int action) {
-    for (auto &scene : scenes)
-        scene->keyboardKeyCallback(key, action);
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-        processIsRunning ? stopProcess() : startProcess();
-    } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !processIsRunning) {
-        process();
-    }
-}
-
-void Application::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-    for (auto &scene : scenes)
-        scene->mouseButtonCallback(xPos, yPos, button, action);
-}
-
-void Application::mouseMoveCallback(double xPos, double yPos) {
-    for (auto &scene : scenes)
-        scene->mouseMoveCallback(xPos, yPos);
-}
-
-void Application::mouseScrollCallback(double xOffset, double yOffset) {
-    for (auto &scene : scenes)
-        scene->mouseScrollCallback(xOffset, yOffset);
-}
-
 double Application::getDt() const {
     return 1.0 / currentFramerate;
 }
@@ -390,7 +418,7 @@ void Application::baseProcess() {
 }
 
 void Application::startProcess() {
-    if (processIsRunning)
+    if (processIsRunning)  //Process is already running
         return;
 
     processIsRunning = true;
@@ -401,7 +429,7 @@ void Application::startProcess() {
 }
 
 void Application::stopProcess() {
-    if (!processIsRunning)
+    if (!processIsRunning)  //Process is not running
         return;
 
     processIsRunning = false;
@@ -439,11 +467,11 @@ void Application::draw() {
     ImGui::Begin("DockSpace", &dockspaceOpen, dockSpaceWindowFlags);
     ImGui::PopStyleVar(3);
 
-    // DockSpace
+    //Draw DockSpace
     ImGuiIO &io = ImGui::GetIO();
     ImGuiStyle &style = ImGui::GetStyle();
     float minWinSizeX = style.WindowMinSize.x;
-    style.WindowMinSize.x = 370.0f;
+    style.WindowMinSize.x = 370.0f;  //ToDo: is this a good size?
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
         ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
@@ -451,49 +479,20 @@ void Application::draw() {
     style.WindowMinSize.x = minWinSizeX;
 
     //Menu bar
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open Project...", "Ctrl+O")) {
-            }
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-            }
-
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-            }
-
-            if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) {
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Exit")) {
-            }
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Script")) {
-            if (ImGui::MenuItem("Reload assembly", "Ctrl+R")) {
-            }
-
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMenuBar();
-    }
+    if (showMenuBar)
+        drawMenuBar();
 
     //Draw scenes
     for (auto &scene : scenes)
-        scene->draw([&]() { drawScene(); });
+        scene->draw();
 
     //Draw console
     if (showConsole)
         drawConsole();
 
     //Draw gui
-    drawGui();
+    if (showGui)
+        drawGui();
 
     //End for docking
     ImGui::End();
@@ -501,7 +500,6 @@ void Application::draw() {
     //Wrap up imgui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    //ImGuiIO &io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         GLFWwindow *currentContext = glfwGetCurrentContext();
         ImGui::UpdatePlatformWindows();
