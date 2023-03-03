@@ -3,8 +3,6 @@
 #include <GLFW/glfw3.h>
 #include <lenny/gui/Scene.h>
 
-#include <thread>
-
 namespace lenny::gui {
 
 class Application {
@@ -18,15 +16,13 @@ public:
 protected:
     //--- Process
     virtual void restart() {}
-    virtual void process() {} //ToDo: Should we enable several process threads? Or remove external thread here and make its own class out of it?
-    void startProcess();
-    void stopProcess();
+    virtual void process() {}
 
     //--- Drawing
     virtual void prepareToDraw() {}
     virtual void wrapUpDraw() {}
+    virtual void drawGui() {}
     virtual void drawMenuBar();
-    virtual void drawGui();
     virtual void drawConsole();
 
     //--- Helpers
@@ -42,27 +38,24 @@ private:
     void setCallbacks();
     void setGuiAndRenderer();
 
-    //--- Process
-    void baseProcess();
-
     //--- Drawing
     void draw();
 
 protected:
+    //--- Scenes
+    std::vector<Scene::SPtr> scenes;
+
     //--- Framerate
     bool limitFramerate = true;
     double targetFramerate = 60.0;
 
     //--- Process
-    bool useSeparateProcessThread = false;
-
-    //--- Members
-    std::vector<Scene::SPtr> scenes;
+    bool processIsRunning = false;
 
     //--- Settings
-    bool showMenuBar = true;
     bool showGui = true;
     bool showConsole = true;
+    bool syncScenes = false; //ToDo!!!
 
 private:
     //--- Window (set in constructor)
@@ -70,10 +63,6 @@ private:
 
     //--- Framerate
     double currentFramerate = targetFramerate;  //Framerate of drawing process (not for separate thread)
-
-    //--- Process
-    std::thread processThread;
-    bool processIsRunning = false;
 };
 
 }  // namespace lenny::gui

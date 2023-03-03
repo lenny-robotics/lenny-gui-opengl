@@ -28,11 +28,12 @@ public:
     void mouseScrollCallback(double xOffset, double yOffset);
     void fileDropCallback(int count, const char** fileNames);
 
+    //--- Helpers
+    const Ray getRayFromScreenCoordinates(double xPos, double yPos) const;
+
 public:
     //--- Functions
     std::function<void()> f_drawScene;
-    std::function<void()> f_drawGui;
-    std::function<void(int, int)> f_resizeWindowCallback;
     std::function<void(int, int)> f_keyboardKeyCallback;
     std::function<void(double, double, int, int)> f_mouseButtonCallback;
     std::function<void(double, double)> f_mouseMoveCallback;
@@ -50,10 +51,9 @@ public:
     bool showOrigin = true;
 
 private:
-    //ToDo: Do we still need all of these parameters?
-    const int width, height;
-    std::array<float, 2> windowPos = {0.f, 0.f};
-    bool blockCameraUpdate = false;
+    bool open = true;
+    std::array<float, 2> windowPos = {0.f, 0.f}, windowSize = {100.f, 100.f};
+    bool blockCallbacks = false;
     uint frameBuffer, texture, renderBuffer;
 };
 

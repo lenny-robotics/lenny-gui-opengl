@@ -16,7 +16,7 @@
 
 namespace lenny::gui {
 
-Scene::Scene(const std::string& description, const int& width, const int& height) : description(description), width(width), height(height) {
+Scene::Scene(const std::string& description, const int& width, const int& height) : description(description) {
     //Framebuffer
     glGenFramebuffers(1, &frameBuffer);
 
@@ -50,17 +50,18 @@ Scene::~Scene() {
 
 void Scene::draw() {
     //Begin ImGui window
-    static bool open = true;
     ImGui::Begin(description.c_str(), &open, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
-
     //ToDo: Set initial size and position (and maybe docking?)
 
     //Gather window info
-    const ImVec2 pos = ImGui::GetWindowPos();
-    const ImVec2 size = ImGui::GetContentRegionAvail();
+    const bool isTitleBarHovered = ImGui::IsItemHovered();
+    const ImVec2 vPos = ImGui::GetWindowPos();
+    const ImVec2 vMin = ImGui::GetWindowContentRegionMin();
+    const ImVec2 vMax = ImGui::GetWindowContentRegionMax();
+    const ImVec2 pos(vPos.x + vMin.x, vPos.y + vMin.y);
+    const ImVec2 size(vMax.x - vMin.x, vMax.y - vMin.y);
 
     //Update camera parameters
-    //ToDo: Should we shift this into window resize callback?
     camera.setAspectRatio(size.x / size.y);
 
     //Update shader
@@ -88,75 +89,75 @@ void Scene::draw() {
     ImGui::Image((ImTextureID)texture, size, ImVec2(0, 1), ImVec2(1, 0));
 
     //Update parameters
-    const bool windowIsBeingMoved = (fabs(pos.x - this->windowPos[0]) > 1e-5) || (fabs(pos.y - this->windowPos[1]) > 1e-5);
-    blockCameraUpdate = !ImGui::IsWindowHovered() || windowIsBeingMoved || ImGuizmo::IsUsing();
+    blockCallbacks = !ImGui::IsWindowHovered() || isTitleBarHovered || ImGuizmo::IsUsing() || ImGuizmo::IsOver();
     this->windowPos = {pos.x, pos.y};
+    this->windowSize = {size.x, size.y};
 
     //Wrap up ImGui
     ImGui::End();
 }
 
 void Scene::drawGui() {
-    if (ImGui::TreeNode(description.c_str())) {
-        ImGui::Checkbox("Show Ground", &showGround);
-        ImGui::Checkbox("Show Origin", &showOrigin);
+    ImGui::Checkbox("Show Ground", &showGround);
+    ImGui::Checkbox("Show Origin", &showOrigin);
 
-        camera.drawGui();
-        light.drawGui();
-        ground.drawGui();
+    camera.drawGui();
+    light.drawGui();
+    ground.drawGui();
 
-        if (ImGui::Button("Print")) {
-            camera.printSettings();
-            light.printSettings();
-            ground.printSettings();
-        }
-
-        ImGui::TreePop();
-
-        if (f_drawGui)
-            f_drawGui();
+    if (ImGui::Button("Print")) { //ToDo: Shift this into individual classes
+        camera.printSettings();
+        light.printSettings();
+        ground.printSettings();
     }
 }
 
-//ToDo: Are we sure we don't need to block some callback functions from time to time?
-//ToDo: Do we need to adapt the mouse position???
-
 void Scene::resizeWindowCallback(int width, int height) {
-    if (f_resizeWindowCallback)
-        f_resizeWindowCallback(width, height);
+    //Update texture
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+    //Update renderbuffer
+    glBindRenderbuffer(GL_RENDERBUFFER, renderBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 }
 
 void Scene::keyboardKeyCallback(int key, int action) {
-    if (f_keyboardKeyCallback)
+    if (!blockCallbacks && f_keyboardKeyCallback)
         f_keyboardKeyCallback(key, action);
-    if (!blockCameraUpdate)
+    if (!blockCallbacks)
         camera.updateKeyboardParameters(key, action);
 }
 
 void Scene::mouseButtonCallback(double xPos, double yPos, int button, int action) {
-    if (f_mouseButtonCallback)
+    if (!blockCallbacks && f_mouseButtonCallback)
         f_mouseButtonCallback(xPos, yPos, button, action);
-    if (!blockCameraUpdate || (action == GLFW_RELEASE))
+    if (!blockCallbacks || (action == GLFW_RELEASE))
         camera.updateMouseButtonParameters(xPos, yPos, button, action);
 }
 
 void Scene::mouseMoveCallback(double xPos, double yPos) {
-    if (f_mouseMoveCallback)
+    if (!blockCallbacks && f_mouseMoveCallback)
         f_mouseMoveCallback(xPos, yPos);
-    if (!blockCameraUpdate)
+    if (!blockCallbacks)
         camera.processMouseMove(xPos, yPos);
 }
 
 void Scene::mouseScrollCallback(double xOffset, double yOffset) {
-    if (f_mouseScrollCallback)
+    if (!blockCallbacks && f_mouseScrollCallback)
         f_mouseScrollCallback(xOffset, yOffset);
-    if (!blockCameraUpdate)
+    if (!blockCallbacks)
         camera.processMouseScroll(xOffset, yOffset);
 }
 
 void Scene::fileDropCallback(int count, const char** fileNames) {
-    if (f_fileDropCallback)
+    if (!blockCallbacks && f_fileDropCallback)
         f_fileDropCallback(count, fileNames);
+}
+
+const Ray Scene::getRayFromScreenCoordinates(double xPos, double yPos) const{
+    glm::vec4 viewportParams(0, 0, windowSize[0], windowSize[1]);
+    return camera.getRayFromScreenCoordinates(xPos - windowPos[0], yPos - windowPos[1], viewportParams);
 }
 
 }  // namespace lenny::gui

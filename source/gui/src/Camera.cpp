@@ -30,18 +30,15 @@ glm::mat4 Camera::getProjectionMatrix() const {
     return glm::perspective(glm::radians(fieldOfView), aspectRatio, zNear, zFar);
 }
 
-Ray Camera::getRayFromScreenCoordinates(double xPos, double yPos) const {
-    glm::vec4 viewportParams;
-    glGetFloatv(GL_VIEWPORT, &viewportParams[0]);
-
+Ray Camera::getRayFromScreenCoordinates(double xPos, double yPos, const glm::vec4& viewportParams) const {
     const glm::vec3 p1 = glm::unProject(glm::vec3(xPos, viewportParams[3] - yPos - 1, 0), getViewMatrix(), getProjectionMatrix(), viewportParams);
     const glm::vec3 p2 = glm::unProject(glm::vec3(xPos, viewportParams[3] - yPos - 1, 1), getViewMatrix(), getProjectionMatrix(), viewportParams);
 
     return {utils::toEigen(p1), utils::toEigen(p2 - p1).normalized()};  //[origin, direction]
 }
 
-Eigen::Vector3d Camera::getGlobalPointFromScreenCoordinates(const Eigen::Vector3d& globalTargetPoint, double xPos, double yPos) const {
-    const Ray ray = getRayFromScreenCoordinates(xPos, yPos);
+Eigen::Vector3d Camera::getGlobalPointFromScreenCoordinates(const Eigen::Vector3d& globalTargetPoint, double xPos, double yPos, const glm::vec4& viewportParams) const {
+    const Ray ray = getRayFromScreenCoordinates(xPos, yPos, viewportParams);
     struct Plane {
         Eigen::Vector3d point, normal;
     };

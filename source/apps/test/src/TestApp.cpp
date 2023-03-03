@@ -92,8 +92,6 @@ void TestApp::drawScene() const {
 
 void TestApp::drawGui() {
     //--- ImGui
-    gui::Application::drawGui();
-
     ImGui::Begin("Menu");
 
     ImGui::ColorPicker4("Renderer Color", rendererColor);
@@ -108,14 +106,13 @@ void TestApp::drawGui() {
     ImGui::End();
 
     //--- ImGuizmo
-    //selectedModel = &models.at(0);
     if (selectedModel)
-        ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scenes.at(0));
+        ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scenes.back());
 }
 
 void TestApp::mouseButtonCallback(double xPos, double yPos, int button, int action) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        const auto ray = scenes.at(0)->camera.getRayFromScreenCoordinates(xPos, yPos);
+        const auto ray = scenes.back()->getRayFromScreenCoordinates(xPos, yPos);
         selectedModel = nullptr;
         for (Model& model : models) {
             const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);

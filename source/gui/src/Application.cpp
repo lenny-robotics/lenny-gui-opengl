@@ -26,9 +26,6 @@ Application::Application(const std::string &title) {
 }
 
 Application::~Application() {
-    //Stop process
-    stopProcess();
-
     //Terminate ImGui
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -193,17 +190,17 @@ void Application::setCallbacks() {
         //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         if (key == GLFW_KEY_ESCAPE) {
-            app->stopProcess();
             glfwSetWindowShouldClose(window, GL_TRUE);
             return;
         }
         if (action == GLFW_PRESS || action == GLFW_RELEASE) {
             //Process
-            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-                app->processIsRunning ? app->stopProcess() : app->startProcess();
-            } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !app->processIsRunning) {
+            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+                app->processIsRunning = !app->processIsRunning;
+            if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !app->processIsRunning)
                 app->process();
-            }
+            if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+                app->restart();
             //Scene callbacks
             for (auto &scene : app->scenes)
                 scene->keyboardKeyCallback(key, action);
@@ -282,7 +279,7 @@ void Application::run() {
         glfwPollEvents();
 
         //Process
-        if (!useSeparateProcessThread && processIsRunning)
+        if (processIsRunning)
             process();
 
         //Draw
@@ -305,30 +302,66 @@ void Application::run() {
 
 void Application::drawMenuBar() {
     if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open Project...", "Ctrl+O")) {
-            }
-            ImGui::Separator();
+        if (ImGui::BeginMenu("Process")) {
+            ImGui::Text("Play:");
+            ImGui::SameLine();
+            ImGui::ToggleButton("Play", &processIsRunning);
 
-            if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-            }
-
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-            }
-
-            if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) {
+            if (!processIsRunning) {
+                ImGui::Text("Step:");
+                ImGui::SameLine();
+                if (ImGui::ArrowButton("tmp", ImGuiDir_Right))
+                    process();
             }
 
-            ImGui::Separator();
+            if (ImGui::Button("Restart"))
+                restart();
 
-            if (ImGui::MenuItem("Exit")) {
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("FPS")) {
+            static double drawFramerate = currentFramerate;
+            static tools::Timer timer;
+            if (timer.time() > 0.333) {
+                drawFramerate = currentFramerate;
+                timer.restart();
+            }
+            ImGui::Text("Current FPS: %.2f", drawFramerate);
+            ImGui::Checkbox("Limit FPS", &limitFramerate);
+            if (limitFramerate) {
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50.f);
+                ImGui::InputDouble("Target FPS", &targetFramerate, 0.0, 0.0, "%.1f");
             }
 
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Script")) {
-            if (ImGui::MenuItem("Reload assembly", "Ctrl+R")) {
+        if (ImGui::BeginMenu("Display")) {
+            ImGui::Checkbox("Show Console", &showConsole);
+            ImGui::Checkbox("Show Gui", &showGui);
+
+            ImGui::EndMenu();
+        }
+
+        //ToDo: Add and remove scenes
+        //ToDo: Sync scenes
+        if (ImGui::BeginMenu("Scenes")) {
+            for (uint i = 0; i < scenes.size(); i++) {
+                if(ImGui::TreeNode(scenes.at(i)->description.c_str())){
+                    scenes.at(i)->drawGui();
+                    if(ImGui::Button("Remove"))
+                        scenes.erase(scenes.begin() + i);
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::Separator();
+            if (ImGui::Button("Add Scene")) {
+                const auto &[width, height] = getCurrentWindowSize();
+                scenes.emplace_back(std::make_shared<Scene>("Scene - " + std::to_string(scenes.size() + 1), width, height));
+                if (scenes.size() > 1)
+                    scenes.back()->f_drawScene = scenes.at(scenes.size() - 2)->f_drawScene;
             }
 
             ImGui::EndMenu();
@@ -338,53 +371,8 @@ void Application::drawMenuBar() {
     }
 }
 
-void Application::drawGui() {
-    //ToDo: Shift this to Menu Bar
-
-    ImGui::Begin("Menu");
-
-    static double drawFramerate = currentFramerate;
-    static tools::Timer timer;
-    if (timer.time() > 0.333) {
-        drawFramerate = currentFramerate;
-        timer.restart();
-    }
-    ImGui::Text("FPS: %.2f", drawFramerate);
-    ImGui::Checkbox("Limit FPS", &limitFramerate);
-    if (limitFramerate) {
-        ImGui::SameLine();
-        ImGui::InputDouble("Target FPS", &targetFramerate);
-    }
-
-    ImGui::Text("Play:");
-    ImGui::SameLine();
-
-    if (ImGui::ToggleButton("Play", &processIsRunning))
-        processIsRunning ? startProcess() : stopProcess();
-
-    if (!processIsRunning) {
-        ImGui::SameLine();
-        if (ImGui::ArrowButton("tmp", ImGuiDir_Right))
-            process();
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Restart"))
-        restart(); //ToDo: Restart needs to be handled properly in case separate thread is executed!
-
-    if (ImGui::TreeNode("Settings")) {
-        ImGui::Checkbox("Show Console", &showConsole);
-
-        ImGui::TreePop();
-    }
-
-    for (auto &scene : scenes)
-        scene->drawGui();
-
-    ImGui::End();
-}
-
 void Application::drawConsole() {
+    //ToDo: Set initial position and size
     ImGui::Begin("Console");
     const auto &msgBuffer = tools::Logger::getMessageBuffer();
     for (const auto &[color, msg] : msgBuffer) {
@@ -410,33 +398,6 @@ std::pair<int, int> Application::getCurrentWindowSize() const {
 
 double Application::getDt() const {
     return 1.0 / currentFramerate;
-}
-
-void Application::baseProcess() {
-    while (processIsRunning)
-        process();
-}
-
-void Application::startProcess() {
-    if (processIsRunning)  //Process is already running
-        return;
-
-    processIsRunning = true;
-    if (useSeparateProcessThread) {
-        processThread = std::thread(&Application::baseProcess, this);
-        LENNY_LOG_INFO("Process thread started...\n");
-    }
-}
-
-void Application::stopProcess() {
-    if (!processIsRunning)  //Process is not running
-        return;
-
-    processIsRunning = false;
-    if (useSeparateProcessThread) {
-        processThread.join();
-        LENNY_LOG_INFO("Process thread terminated...\n");
-    }
 }
 
 void Application::draw() {
@@ -479,8 +440,7 @@ void Application::draw() {
     style.WindowMinSize.x = minWinSizeX;
 
     //Menu bar
-    if (showMenuBar)
-        drawMenuBar();
+    drawMenuBar();
 
     //Draw scenes
     for (auto &scene : scenes)
