@@ -5,10 +5,10 @@
 // clang-format off
 #include <glad/glad.h> //Glad needs to be included before glfw!
 #include <GLFW/glfw3.h>
+#include <lenny/gui/ImGui.h>
+#include <lenny/gui/Guizmo.h>
 // clang-format on
 
-#include <lenny/gui/ImGui.h>
-#include <lenny/gui/ImGuizmo.h>
 #include <lenny/gui/Renderer.h>
 #include <lenny/gui/Scene.h>
 #include <lenny/gui/Shaders.h>
@@ -51,7 +51,6 @@ Scene::~Scene() {
 void Scene::draw() {
     //Begin ImGui window
     ImGui::Begin(description.c_str(), &open, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
-    //ToDo: Set initial size and position (and maybe docking?)
 
     //Gather window info
     const bool isTitleBarHovered = ImGui::IsItemHovered();
@@ -89,6 +88,8 @@ void Scene::draw() {
     ImGui::Image((ImTextureID)texture, size, ImVec2(0, 1), ImVec2(1, 0));
 
     //Update parameters
+    if (ImGui::IsWindowHovered())
+        Guizmo::scene = this;
     blockCallbacks = !ImGui::IsWindowHovered() || isTitleBarHovered || ImGuizmo::IsUsing() || ImGuizmo::IsOver();
     this->windowPos = {pos.x, pos.y};
     this->windowSize = {size.x, size.y};
@@ -104,12 +105,6 @@ void Scene::drawGui() {
     camera.drawGui();
     light.drawGui();
     ground.drawGui();
-
-    if (ImGui::Button("Print")) { //ToDo: Shift this into individual classes
-        camera.printSettings();
-        light.printSettings();
-        ground.printSettings();
-    }
 }
 
 void Scene::resizeWindowCallback(int width, int height) {
@@ -123,31 +118,37 @@ void Scene::resizeWindowCallback(int width, int height) {
 }
 
 void Scene::keyboardKeyCallback(int key, int action) {
-    if (!blockCallbacks && f_keyboardKeyCallback)
+    if (blockCallbacks)
+        return;
+
+    if (f_keyboardKeyCallback)
         f_keyboardKeyCallback(key, action);
-    if (!blockCallbacks)
-        camera.updateKeyboardParameters(key, action);
+    camera.updateKeyboardParameters(key, action);
 }
 
-void Scene::mouseButtonCallback(double xPos, double yPos, int button, int action) {
+void Scene::mouseButtonCallback(double xPos, double yPos, Ray ray, int button, int action) {
     if (!blockCallbacks && f_mouseButtonCallback)
-        f_mouseButtonCallback(xPos, yPos, button, action);
+        f_mouseButtonCallback(xPos, yPos, ray, button, action);
     if (!blockCallbacks || (action == GLFW_RELEASE))
         camera.updateMouseButtonParameters(xPos, yPos, button, action);
 }
 
-void Scene::mouseMoveCallback(double xPos, double yPos) {
-    if (!blockCallbacks && f_mouseMoveCallback)
-        f_mouseMoveCallback(xPos, yPos);
-    if (!blockCallbacks)
-        camera.processMouseMove(xPos, yPos);
+void Scene::mouseMoveCallback(double xPos, double yPos, Ray ray) {
+    if (blockCallbacks)
+        return;
+
+    if (f_mouseMoveCallback)
+        f_mouseMoveCallback(xPos, yPos, ray);
+    camera.processMouseMove(xPos, yPos);
 }
 
 void Scene::mouseScrollCallback(double xOffset, double yOffset) {
-    if (!blockCallbacks && f_mouseScrollCallback)
+    if (blockCallbacks)
+        return;
+
+    if (f_mouseScrollCallback)
         f_mouseScrollCallback(xOffset, yOffset);
-    if (!blockCallbacks)
-        camera.processMouseScroll(xOffset, yOffset);
+    camera.processMouseScroll(xOffset, yOffset);
 }
 
 void Scene::fileDropCallback(int count, const char** fileNames) {
@@ -155,9 +156,27 @@ void Scene::fileDropCallback(int count, const char** fileNames) {
         f_fileDropCallback(count, fileNames);
 }
 
-const Ray Scene::getRayFromScreenCoordinates(double xPos, double yPos) const{
+const Ray Scene::getRayFromScreenCoordinates(double xPos, double yPos) const {
     glm::vec4 viewportParams(0, 0, windowSize[0], windowSize[1]);
     return camera.getRayFromScreenCoordinates(xPos - windowPos[0], yPos - windowPos[1], viewportParams);
+}
+
+void Scene::copyCallbacksFromOtherScene(const Scene::CSPtr otherScene) {
+    this->f_drawScene = otherScene->f_drawScene;
+    this->f_keyboardKeyCallback = otherScene->f_keyboardKeyCallback;
+    this->f_mouseButtonCallback = otherScene->f_mouseButtonCallback;
+    this->f_mouseMoveCallback = otherScene->f_mouseMoveCallback;
+    this->f_mouseScrollCallback = otherScene->f_mouseScrollCallback;
+    this->f_fileDropCallback = otherScene->f_fileDropCallback;
+}
+
+void Scene::sync(const Scene::CSPtr otherScene) {
+    this->camera.sync(otherScene->camera);
+    this->light.sync(otherScene->light);
+    this->ground.sync(otherScene->ground);
+    this->clearColor = otherScene->clearColor;
+    this->showGround = otherScene->showGround;
+    this->showOrigin = otherScene->showOrigin;
 }
 
 }  // namespace lenny::gui

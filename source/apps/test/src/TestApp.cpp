@@ -1,6 +1,6 @@
 #include "TestApp.h"
 
-#include <lenny/gui/ImGuizmo.h>
+#include <lenny/gui/Guizmo.h>
 #include <lenny/gui/Renderer.h>
 #include <lenny/tools/Logger.h>
 
@@ -9,7 +9,7 @@ namespace lenny {
 TestApp::TestApp() : gui::Application("TestApp") {
     //Setup scene callbacks
     scenes.back()->f_drawScene = [&]() -> void { drawScene(); };
-    scenes.back()->f_mouseButtonCallback = [&](double xPos, double yPos, int button, int action) -> void { mouseButtonCallback(xPos, yPos, button, action); };
+    scenes.back()->f_mouseButtonCallback = [&](double xPos, double yPos, Ray ray, int button, int action) -> void { mouseButtonCallback(xPos, yPos, ray, button, action); };
     scenes.back()->f_fileDropCallback = [&](int count, const char** fileNames) -> void { fileDropCallback(count, fileNames); };
 
     //Add plot lines
@@ -104,15 +104,15 @@ void TestApp::drawGui() {
     }
 
     ImGui::End();
-
-    //--- ImGuizmo
-    if (selectedModel)
-        ImGuizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale, scenes.back());
 }
 
-void TestApp::mouseButtonCallback(double xPos, double yPos, int button, int action) {
+void TestApp::drawGuizmo() {
+    if (selectedModel)
+        gui::Guizmo::useWidget(selectedModel->position, selectedModel->orientation, selectedModel->scale);
+}
+
+void TestApp::mouseButtonCallback(double xPos, double yPos, Ray ray, int button, int action) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        const auto ray = scenes.back()->getRayFromScreenCoordinates(xPos, yPos);
         selectedModel = nullptr;
         for (Model& model : models) {
             const auto hitInfo = model.mesh.hitByRay(model.position, model.orientation, model.scale, ray);

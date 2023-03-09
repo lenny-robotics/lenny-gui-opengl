@@ -16,6 +16,8 @@ public:
     static void to_json(json& j, const Ground& o);
     static void from_json(const json& j, Ground& o);
 
+    void sync(const Ground& otherGround);
+
 public:
     //Sizes
     int size;  //Set by constructor

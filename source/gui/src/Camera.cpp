@@ -139,4 +139,11 @@ void Camera::from_json(const json& j, Camera& o) {
     FROM_JSON(o, target)
 }
 
+void Camera::sync(const Camera& otherCamera){
+    this->rotationAboutUpAxis = otherCamera.rotationAboutUpAxis;
+    this->rotationAboutRightAxis = otherCamera.rotationAboutRightAxis;
+    this->distanceToTarget = otherCamera.distanceToTarget;
+    this->target = otherCamera.target;
+}
+
 }  // namespace lenny::gui

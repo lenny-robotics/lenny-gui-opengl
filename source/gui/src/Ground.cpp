@@ -77,4 +77,14 @@ void Ground::from_json(const json& j, Ground& o) {
     FROM_JSON(o, showGrid)
 }
 
+void Ground::sync(const Ground& otherGround){
+    this->size = otherGround.size;
+    this->gridThickness = otherGround.gridThickness;
+    this->intensity = otherGround.intensity;
+    this->groundColor = otherGround.groundColor;
+    this->gridColor = otherGround.gridColor;
+    this->showPlane = otherGround.showPlane;
+    this->showGrid = otherGround.showGrid;
+}
+
 }  // namespace lenny::gui

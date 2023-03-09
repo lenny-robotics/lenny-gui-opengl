@@ -36,6 +36,9 @@ public:
     static void to_json(json& j, const Camera& o);
     static void from_json(const json& j, Camera& o);
 
+    //--- Sync
+    void sync(const Camera& otherCamera);
+
 private:
     //--- Interaction
     void processLeftMouseMovement(double xOffset, double yOffset);

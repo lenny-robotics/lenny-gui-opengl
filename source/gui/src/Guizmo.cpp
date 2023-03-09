@@ -1,20 +1,25 @@
 #include <lenny/gui/ImGui.h>
-#include <lenny/gui/ImGuizmo.h>
+#include <lenny/gui/Guizmo.h>
 #include <lenny/tools/Utils.h>
 
 #include <glm/gtc/type_ptr.hpp>
 
-namespace ImGuizmo {
+namespace lenny::gui {
 
-void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen::Vector3d& scale, const lenny::gui::Scene::CSPtr scene) {
+void Guizmo::useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen::Vector3d& scale) {
+    //--- Check if scene has been set
+    if(!scene)
+        return;
+
     //--- Transform components
     glm::mat4 transform = lenny::gui::utils::getGLMTransform(position, orientation, scale);
 
     //--- Draw settings gui
-    ImGui::Begin("ImGuizmo");
+    ImGui::SetNextWindowPos(ImVec2(0.f, 0.f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(250.f, 250.f), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Guizmo");
 
     //Setup operation
-    static ImGuizmo::OPERATION currentOperation(ImGuizmo::TRANSLATE);
     if (ImGui::RadioButton("Translate", currentOperation == ImGuizmo::TRANSLATE))
         currentOperation = ImGuizmo::TRANSLATE;
     ImGui::SameLine();
@@ -22,10 +27,9 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
         currentOperation = ImGuizmo::ROTATE;
     ImGui::SameLine();
     if (ImGui::RadioButton("Scale", currentOperation == ImGuizmo::SCALE))
-        currentOperation = ImGuizmo::SCALE;
+        currentOperation =ImGuizmo::SCALE;
 
     //Setup mode
-    static ImGuizmo::MODE currentMode(ImGuizmo::LOCAL);
     if (currentOperation == ImGuizmo::SCALE)
         currentMode = ImGuizmo::LOCAL;
     else
@@ -45,7 +49,7 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
     //--- Draw manipulation gui
     ImGui::Begin(scene->description.c_str());
 
-    //Setup imguizmo
+    //Setup Guizmo
     ImGuizmo::BeginFrame();
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetDrawlist();
@@ -71,4 +75,4 @@ void useWidget(Eigen::Vector3d& position, Eigen::QuaternionD& orientation, Eigen
     scale << matrixScale[0], matrixScale[1], matrixScale[2];
 }
 
-}  // namespace ImGuizmo
+}  // namespace lenny::gui

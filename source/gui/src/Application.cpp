@@ -22,7 +22,7 @@ Application::Application(const std::string &title) {
     Shaders::initialize();
     setGuiAndRenderer();
     const auto [width, height] = getCurrentWindowSize();
-    scenes.emplace_back(std::make_shared<Scene>("Main Scene", width, height));
+    scenes.emplace_back(std::make_shared<Scene>("Scene - 1", width, height));
 }
 
 Application::~Application() {
@@ -58,17 +58,8 @@ void Application::initializeGLFW(const std::string &title) {
     if (!mode)
         LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
 
-    //Get window dimensions //ToDo: Is this still necessary?
-    const int borderLeft = 2;
-    const int borderTop = 70;
-    const int borderRight = 2;
-    const int borderBottom = 105;
-
-    const int width = mode->width - borderLeft - borderRight;
-    const int height = mode->height - borderTop - borderBottom;
-
     //Create window
-    this->glfwWindow = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    this->glfwWindow = glfwCreateWindow(mode->width, mode->height, title.c_str(), nullptr, nullptr);
     if (!this->glfwWindow)
         LENNY_LOG_ERROR("GLFW: Failed to create window!");
     glfwMakeContextCurrent(this->glfwWindow);
@@ -114,7 +105,8 @@ void Application::initializeImGui() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
     //Set font
-    float fontSize = 18.0f;  //ToDo: Should we make this adaptable?
+    const auto [windowWidth, windowHeight] = getCurrentWindowSize();
+    const float fontSize = 11.f * (float)windowWidth / (float)windowHeight;
     io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Bold.ttf", fontSize);
     io.FontDefault = io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Regular.ttf", fontSize);
 
@@ -221,7 +213,7 @@ void Application::setCallbacks() {
             glfwGetCursorPos(window, &xPos, &yPos);
             //Scene callbacks
             for (auto &scene : app->scenes)
-                scene->mouseButtonCallback(xPos, yPos, button, action);
+                scene->mouseButtonCallback(xPos, yPos, scene->getRayFromScreenCoordinates(xPos, yPos), button, action);
         }
     });
 
@@ -235,7 +227,7 @@ void Application::setCallbacks() {
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         //Scene callbacks
         for (auto &scene : app->scenes)
-            scene->mouseMoveCallback(xPos, yPos);
+            scene->mouseMoveCallback(xPos, yPos, scene->getRayFromScreenCoordinates(xPos, yPos));
     });
 
     //Mouse scroll
@@ -345,24 +337,26 @@ void Application::drawMenuBar() {
             ImGui::EndMenu();
         }
 
-        //ToDo: Add and remove scenes
-        //ToDo: Sync scenes
         if (ImGui::BeginMenu("Scenes")) {
             for (uint i = 0; i < scenes.size(); i++) {
-                if(ImGui::TreeNode(scenes.at(i)->description.c_str())){
+                if (ImGui::TreeNode(scenes.at(i)->description.c_str())) {
                     scenes.at(i)->drawGui();
-                    if(ImGui::Button("Remove"))
+                    if (ImGui::Button("Remove"))
                         scenes.erase(scenes.begin() + i);
                     ImGui::TreePop();
                 }
             }
+
             ImGui::Separator();
             if (ImGui::Button("Add Scene")) {
                 const auto &[width, height] = getCurrentWindowSize();
                 scenes.emplace_back(std::make_shared<Scene>("Scene - " + std::to_string(scenes.size() + 1), width, height));
                 if (scenes.size() > 1)
-                    scenes.back()->f_drawScene = scenes.at(scenes.size() - 2)->f_drawScene;
+                    scenes.back()->copyCallbacksFromOtherScene(scenes.at(scenes.size() - 2));
             }
+
+            ImGui::Separator();
+            ImGui::Checkbox("Sync Scenes", &syncScenes);
 
             ImGui::EndMenu();
         }
@@ -372,7 +366,6 @@ void Application::drawMenuBar() {
 }
 
 void Application::drawConsole() {
-    //ToDo: Set initial position and size
     ImGui::Begin("Console");
     const auto &msgBuffer = tools::Logger::getMessageBuffer();
     for (const auto &[color, msg] : msgBuffer) {
@@ -431,28 +424,45 @@ void Application::draw() {
     //Draw DockSpace
     ImGuiIO &io = ImGui::GetIO();
     ImGuiStyle &style = ImGui::GetStyle();
-    float minWinSizeX = style.WindowMinSize.x;
-    style.WindowMinSize.x = 370.0f;  //ToDo: is this a good size?
+    const float minWinSizeX = style.WindowMinSize.x;
+    style.WindowMinSize.x = (float)windowWidth / 6.f;
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
         ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
     }
     style.WindowMinSize.x = minWinSizeX;
 
-    //Menu bar
+    //Draw menu bar
     drawMenuBar();
 
+    //Sync scenes
+    if (syncScenes && scenes.size() > 1)
+        for (int i = 1; i < scenes.size(); i++)
+            scenes.at(i)->sync(scenes.at(0));
+
     //Draw scenes
-    for (auto &scene : scenes)
+    for (auto &scene : scenes) {
+        ImGui::SetNextWindowPos(ImVec2(0.25 * windowWidth, ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(0.75 * windowWidth, 0.75 * windowHeight - ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
         scene->draw();
+    }
 
     //Draw console
-    if (showConsole)
+    if (showConsole) {
+        ImGui::SetNextWindowPos(ImVec2(0.f, 0.75 * windowHeight), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(windowWidth, 0.25 * windowHeight), ImGuiCond_FirstUseEver);
         drawConsole();
+    }
 
     //Draw gui
-    if (showGui)
+    if (showGui) {
+        ImGui::SetNextWindowPos(ImVec2(0.f, ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(0.25 * windowWidth, 0.75 * windowHeight - ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
         drawGui();
+    }
+
+    //Draw guizmo
+    drawGuizmo();
 
     //End for docking
     ImGui::End();

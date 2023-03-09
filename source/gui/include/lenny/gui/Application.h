@@ -22,6 +22,7 @@ protected:
     virtual void prepareToDraw() {}
     virtual void wrapUpDraw() {}
     virtual void drawGui() {}
+    virtual void drawGuizmo() {}
     virtual void drawMenuBar();
     virtual void drawConsole();
 
@@ -55,7 +56,7 @@ protected:
     //--- Settings
     bool showGui = true;
     bool showConsole = true;
-    bool syncScenes = false; //ToDo!!!
+    bool syncScenes = false;
 
 private:
     //--- Window (set in constructor)

@@ -18,15 +18,16 @@ public:
     //--- Drawing
     void drawScene() const;
     void drawGui() override;
+    void drawGuizmo() override;
 
     //--- Interaction
-    void mouseButtonCallback(double xPos, double yPos, int button, int action);
+    void mouseButtonCallback(double xPos, double yPos, Ray ray, int button, int action);
     void fileDropCallback(int count, const char** fileNames);
 
 public:
     int consoleIter = 0;
     Eigen::Vector4d rendererColor = Eigen::Vector4d(0.75, 0.75, 0.75, 1.0);
-    bool showRenderings = true;
+    bool showRenderings = false;
     bool showMaterials = true;
 
     struct Model {

@@ -23,20 +23,22 @@ public:
     //--- Callbacks
     void resizeWindowCallback(int width, int height);
     void keyboardKeyCallback(int key, int action);
-    void mouseButtonCallback(double xPos, double yPos, int button, int action);
-    void mouseMoveCallback(double xPos, double yPos);
+    void mouseButtonCallback(double xPos, double yPos, Ray ray, int button, int action);
+    void mouseMoveCallback(double xPos, double yPos, Ray ray);
     void mouseScrollCallback(double xOffset, double yOffset);
     void fileDropCallback(int count, const char** fileNames);
 
     //--- Helpers
     const Ray getRayFromScreenCoordinates(double xPos, double yPos) const;
+    void copyCallbacksFromOtherScene(const Scene::CSPtr otherScene);
+    void sync(const Scene::CSPtr otherScene);
 
 public:
     //--- Functions
     std::function<void()> f_drawScene;
     std::function<void(int, int)> f_keyboardKeyCallback;
-    std::function<void(double, double, int, int)> f_mouseButtonCallback;
-    std::function<void(double, double)> f_mouseMoveCallback;
+    std::function<void(double, double, Ray, int, int)> f_mouseButtonCallback;
+    std::function<void(double, double, Ray)> f_mouseMoveCallback;
     std::function<void(double, double)> f_mouseScrollCallback;
     std::function<void(int, const char**)> f_fileDropCallback;
 
