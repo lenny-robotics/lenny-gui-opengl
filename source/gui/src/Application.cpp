@@ -9,12 +9,13 @@
 #include <lenny/gui/Shaders.h>
 #include <lenny/tools/Logger.h>
 #include <lenny/tools/Timer.h>
+#include <stb_image.h>
 
 namespace lenny::gui {
 
-Application::Application(const std::string &title) {
+Application::Application(const std::string &title, const std::string &iconPath) {
     //Initialize everything
-    initializeGLFW(title);
+    initializeGLFW(title, iconPath);
     initializeOpenGL();
     initializeImGui();
     setCallbacks();
@@ -37,7 +38,7 @@ Application::~Application() {
     glfwTerminate();
 }
 
-void Application::initializeGLFW(const std::string &title) {
+void Application::initializeGLFW(const std::string &title, const std::string &iconPath) {
     //Initialize
     if (!glfwInit())
         LENNY_LOG_ERROR("GLFW: initialization failed!");
@@ -63,6 +64,17 @@ void Application::initializeGLFW(const std::string &title) {
     if (!this->glfwWindow)
         LENNY_LOG_ERROR("GLFW: Failed to create window!");
     glfwMakeContextCurrent(this->glfwWindow);
+
+    //Setup icon
+    const std::ifstream iconFile(iconPath.c_str());
+    if (iconFile.good()) {
+        GLFWimage image;
+        image.pixels = stbi_load(iconPath.c_str(), &image.width, &image.height, nullptr, 4);
+        glfwSetWindowIcon(this->glfwWindow, 1, &image);
+        stbi_image_free(image.pixels);
+    } else {
+        LENNY_LOG_WARNING("Icon file path `%s` could not be found", iconPath.c_str())
+    }
 
     //Disable waiting for framerate of glfw window
     glfwSwapInterval(0);

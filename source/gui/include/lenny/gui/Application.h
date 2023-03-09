@@ -7,7 +7,7 @@ namespace lenny::gui {
 
 class Application {
 public:
-    Application(const std::string& title);
+    Application(const std::string& title, const std::string& iconPath = LENNY_GUI_OPENGL_FOLDER "/data/icons/default_icon.jpg");
     virtual ~Application();
 
     //--- Run
@@ -33,7 +33,7 @@ protected:
 
 private:
     //--- Initialization
-    void initializeGLFW(const std::string& title);
+    void initializeGLFW(const std::string& title, const std::string& iconPath);
     void initializeOpenGL();
     void initializeImGui();
     void setCallbacks();
