@@ -13,10 +13,12 @@
 #include <lenny/gui/Scene.h>
 #include <lenny/gui/Shaders.h>
 #include <lenny/tools/Logger.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 namespace lenny::gui {
 
-Scene::Scene(const std::string& description, const int& width, const int& height) : description(description) {
+Scene::Scene(const std::string& description, const int& width, const int& height) : description(description), textureWidth(width), textureHeight(height) {
     //Framebuffer
     glGenFramebuffers(1, &frameBuffer);
 
@@ -105,9 +107,17 @@ void Scene::drawGui() {
     camera.drawGui();
     light.drawGui();
     ground.drawGui();
+
+    if(ImGui::Button("Save Screenshot")){
+        saveScreenshotToFile(LENNY_PROJECT_FOLDER"/logs/Screenshot-" + description + "-" + tools::utils::getCurrentDateAndTime() + ".png");
+    }
 }
 
 void Scene::resizeWindowCallback(int width, int height) {
+    //Update parameters
+    this->textureWidth = width;
+    this->textureHeight = height;
+
     //Update texture
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
@@ -177,6 +187,27 @@ void Scene::sync(const Scene::CSPtr otherScene) {
     this->clearColor = otherScene->clearColor;
     this->showGround = otherScene->showGround;
     this->showOrigin = otherScene->showOrigin;
+}
+
+bool Scene::saveScreenshotToFile(const std::string& filePath) const {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    const int width = windowSize[0];
+    const int height = windowSize[1];
+    GLsizei nrChannels = 3;
+    GLsizei stride = nrChannels * width;
+    stride += (stride % 4) ? (4 - stride % 4) : 0;
+    GLsizei bufferSize = stride * height;
+    std::vector<char> buffer(bufferSize);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadBuffer(GL_FRONT);
+    glReadPixels((int)windowPos[0], this->textureHeight - ((int)windowPos[1] + height), width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+    stbi_flip_vertically_on_write(true);
+    const bool successful = stbi_write_png(filePath.c_str(), width, height, nrChannels, buffer.data(), stride);
+    if (successful)
+        LENNY_LOG_INFO("Successfully saved screenshot to file `%s`", filePath.c_str())
+    else
+        LENNY_LOG_WARNING("Could not save screenshot into file `%s`", filePath.c_str())
+    return successful;
 }
 
 }  // namespace lenny::gui

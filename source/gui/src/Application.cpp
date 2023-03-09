@@ -9,7 +9,10 @@
 #include <lenny/gui/Shaders.h>
 #include <lenny/tools/Logger.h>
 #include <lenny/tools/Timer.h>
+//#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 namespace lenny::gui {
 
@@ -373,6 +376,14 @@ void Application::drawMenuBar() {
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Recording")) {
+            if (ImGui::Button("Save Screenshot")) {
+                saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
+            }
+
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
 }
@@ -403,6 +414,26 @@ std::pair<int, int> Application::getCurrentWindowSize() const {
 
 double Application::getDt() const {
     return 1.0 / currentFramerate;
+}
+
+bool Application::saveScreenshotToFile(const std::string &filePath) const {
+    int width, height;
+    glfwGetFramebufferSize(glfwWindow, &width, &height);
+    GLsizei nrChannels = 3;
+    GLsizei stride = nrChannels * width;
+    stride += (stride % 4) ? (4 - stride % 4) : 0;
+    GLsizei bufferSize = stride * height;
+    std::vector<char> buffer(bufferSize);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+    stbi_flip_vertically_on_write(true);
+    const bool successful = stbi_write_png(filePath.c_str(), width, height, nrChannels, buffer.data(), stride);
+    if (successful)
+        LENNY_LOG_INFO("Successfully saved screenshot to file `%s`", filePath.c_str())
+    else
+        LENNY_LOG_WARNING("Could not save screenshot into file `%s`", filePath.c_str())
+    return successful;
 }
 
 void Application::draw() {

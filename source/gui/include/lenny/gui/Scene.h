@@ -32,6 +32,7 @@ public:
     const Ray getRayFromScreenCoordinates(double xPos, double yPos) const;
     void copyCallbacksFromOtherScene(const Scene::CSPtr otherScene);
     void sync(const Scene::CSPtr otherScene);
+    bool saveScreenshotToFile(const std::string& filePath) const;
 
 public:
     //--- Functions
@@ -57,6 +58,7 @@ private:
     std::array<float, 2> windowPos = {0.f, 0.f}, windowSize = {100.f, 100.f};
     bool blockCallbacks = false;
     uint frameBuffer, texture, renderBuffer;
+    int textureWidth, textureHeight;
 };
 
 }  // namespace lenny::gui

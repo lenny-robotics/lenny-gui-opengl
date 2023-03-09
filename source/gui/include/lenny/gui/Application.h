@@ -30,6 +30,7 @@ protected:
     double getDt() const;
     std::pair<int, int> getCurrentWindowPosition() const;
     std::pair<int, int> getCurrentWindowSize() const;
+    bool saveScreenshotToFile(const std::string& filePath) const;
 
 private:
     //--- Initialization
