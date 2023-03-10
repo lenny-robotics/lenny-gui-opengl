@@ -15,6 +15,8 @@
 #include <lenny/tools/Logger.h>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include <stb_image_resize.h>
 
 namespace lenny::gui {
 
@@ -108,9 +110,8 @@ void Scene::drawGui() {
     light.drawGui();
     ground.drawGui();
 
-    if(ImGui::Button("Save Screenshot")){
+    if(ImGui::Button("Save Screenshot"))
         saveScreenshotToFile(LENNY_PROJECT_FOLDER"/logs/Screenshot-" + description + "-" + tools::utils::getCurrentDateAndTime() + ".png");
-    }
 }
 
 void Scene::resizeWindowCallback(int width, int height) {
@@ -190,23 +191,36 @@ void Scene::sync(const Scene::CSPtr otherScene) {
 }
 
 bool Scene::saveScreenshotToFile(const std::string& filePath) const {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    const int width = windowSize[0];
-    const int height = windowSize[1];
-    GLsizei nrChannels = 3;
-    GLsizei stride = nrChannels * width;
-    stride += (stride % 4) ? (4 - stride % 4) : 0;
-    GLsizei bufferSize = stride * height;
-    std::vector<char> buffer(bufferSize);
+    //Bind frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+    const GLsizei nrChannels = 3;
+
+    //Get image
+    GLsizei stride_input = nrChannels * textureWidth;
+    stride_input += (stride_input % 4) ? (4 - stride_input % 4) : 0;
+    GLsizei bufferSize_input = stride_input * textureHeight;
+    std::vector<unsigned char> buffer_input(bufferSize_input);
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glReadBuffer(GL_FRONT);
-    glReadPixels((int)windowPos[0], this->textureHeight - ((int)windowPos[1] + height), width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+    glReadPixels(0, 0, textureWidth, textureHeight, GL_RGB, GL_UNSIGNED_BYTE, buffer_input.data());
+
+    //Resize image
+    GLsizei stride_output = nrChannels * windowSize[0];
+    stride_output += (stride_output % 4) ? (4 - stride_output % 4) : 0;
+    GLsizei bufferSize_output = stride_output * windowSize[1];
+    std::vector<unsigned char> buffer_output(bufferSize_output);
+    stbir_resize_uint8(buffer_input.data(), textureWidth, textureHeight, stride_input, buffer_output.data(), windowSize[0], windowSize[1], stride_output, nrChannels);
+
+    //Save image to file
     stbi_flip_vertically_on_write(true);
-    const bool successful = stbi_write_png(filePath.c_str(), width, height, nrChannels, buffer.data(), stride);
+    const bool successful = stbi_write_png(filePath.c_str(), windowSize[0], windowSize[1], nrChannels, buffer_output.data(), stride_output);
     if (successful)
         LENNY_LOG_INFO("Successfully saved screenshot to file `%s`", filePath.c_str())
     else
         LENNY_LOG_WARNING("Could not save screenshot into file `%s`", filePath.c_str())
+
+    //Deactivate frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return successful;
 }
 

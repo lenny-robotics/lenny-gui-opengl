@@ -26,7 +26,7 @@ Application::Application(const std::string &title, const std::string &iconPath) 
     Shaders::initialize();
     setGuiAndRenderer();
     const auto [width, height] = getCurrentWindowSize();
-    scenes.emplace_back(std::make_shared<Scene>("Scene - 1", width, height));
+    scenes.emplace_back(std::make_shared<Scene>("Scene-1", width, height));
 }
 
 Application::~Application() {
@@ -201,13 +201,14 @@ void Application::setCallbacks() {
             return;
         }
         if (action == GLFW_PRESS || action == GLFW_RELEASE) {
-            //Process
-            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-                app->processIsRunning = !app->processIsRunning;
-            if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !app->processIsRunning)
-                app->process();
-            if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
-                app->restart();
+            //ToDo!
+//            //Process
+//            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+//                app->processIsRunning = !app->processIsRunning;
+//            if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !app->processIsRunning)
+//                app->process();
+//            if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+//                app->restart();
             //Scene callbacks
             for (auto &scene : app->scenes)
                 scene->keyboardKeyCallback(key, action);
@@ -285,10 +286,6 @@ void Application::run() {
         //Poll IO events (keyboard, mouse, etc.)
         glfwPollEvents();
 
-        //Process
-        if (processIsRunning)
-            process();
-
         //Draw
         prepareToDraw();
         draw();
@@ -309,45 +306,20 @@ void Application::run() {
 
 void Application::drawMenuBar() {
     if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("Process")) {
-            ImGui::Text("Play:");
-            ImGui::SameLine();
-            ImGui::ToggleButton("Play", &processIsRunning);
-
-            if (!processIsRunning) {
-                ImGui::Text("Step:");
-                ImGui::SameLine();
-                if (ImGui::ArrowButton("tmp", ImGuiDir_Right))
-                    process();
-            }
-
-            if (ImGui::Button("Restart"))
-                restart();
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("FPS")) {
-            static double drawFramerate = currentFramerate;
-            static tools::Timer timer;
-            if (timer.time() > 0.333) {
-                drawFramerate = currentFramerate;
-                timer.restart();
-            }
-            ImGui::Text("Current FPS: %.2f", drawFramerate);
-            ImGui::Checkbox("Limit FPS", &limitFramerate);
-            if (limitFramerate) {
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.f);
-                ImGui::InputDouble("Target FPS", &targetFramerate, 0.0, 0.0, "%.1f");
-            }
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Display")) {
-            ImGui::Checkbox("Show Console", &showConsole);
-            ImGui::Checkbox("Show Gui", &showGui);
+        if (ImGui::BeginMenu("Processes")) {
+//            ImGui::Text("Play:");
+//            ImGui::SameLine();
+//            ImGui::ToggleButton("Play", &processIsRunning);
+//
+//            if (!processIsRunning) {
+//                ImGui::Text("Step:");
+//                ImGui::SameLine();
+//                if (ImGui::ArrowButton("tmp", ImGuiDir_Right))
+//                    process();
+//            }
+//
+//            if (ImGui::Button("Restart"))
+//                restart();
 
             ImGui::EndMenu();
         }
@@ -365,7 +337,7 @@ void Application::drawMenuBar() {
             ImGui::Separator();
             if (ImGui::Button("Add Scene")) {
                 const auto &[width, height] = getCurrentWindowSize();
-                scenes.emplace_back(std::make_shared<Scene>("Scene - " + std::to_string(scenes.size() + 1), width, height));
+                scenes.emplace_back(std::make_shared<Scene>("Scene-" + std::to_string(scenes.size() + 1), width, height));
                 if (scenes.size() > 1)
                     scenes.back()->copyCallbacksFromOtherScene(scenes.at(scenes.size() - 2));
             }
@@ -376,10 +348,29 @@ void Application::drawMenuBar() {
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Recording")) {
-            if (ImGui::Button("Save Screenshot")) {
-                saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
+        if (ImGui::BeginMenu("Drawing")) {
+            static double drawFramerate = currentFramerate;
+            static tools::Timer timer;
+            if (timer.time() > 0.333) {
+                drawFramerate = currentFramerate;
+                timer.restart();
             }
+            ImGui::Text("Current FPS: %.2f", drawFramerate);
+            ImGui::Checkbox("Limit FPS", &limitFramerate);
+            if (limitFramerate) {
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(50.f);
+                ImGui::InputDouble("Target FPS", &targetFramerate, 0.0, 0.0, "%.1f");
+            }
+
+            ImGui::Separator();
+            ImGui::Checkbox("Show Console", &showConsole);
+            ImGui::Checkbox("Show Gui", &showGui);
+
+            ImGui::Separator();
+            if (ImGui::Button("Save Screenshot"))
+                saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
+
 
             ImGui::EndMenu();
         }

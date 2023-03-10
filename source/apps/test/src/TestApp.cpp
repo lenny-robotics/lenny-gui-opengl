@@ -18,16 +18,16 @@ TestApp::TestApp() : gui::Application("TestApp") {
     plot.addLineSpec({"z", [](const Eigen::Vector3d& d) { return (float)d.z(); }});
 }
 
-void TestApp::restart() {
-    consoleIter = 0;
-    data_x = 0.f;
-}
-
-void TestApp::process() {
-    LENNY_LOG_INFO("Test: %d", consoleIter++);
-    plot.addData(data_x, Eigen::Vector3d::Random());
-    data_x += (float)getDt();
-}
+//void TestApp::restart() {
+//    consoleIter = 0;
+//    data_x = 0.f;
+//}
+//
+//void TestApp::process() {
+//    LENNY_LOG_INFO("Test: %d", consoleIter++);
+//    plot.addData(data_x, Eigen::Vector3d::Random());
+//    data_x += (float)getDt();
+//}
 
 void TestApp::drawScene() const {
     //--- Renderer

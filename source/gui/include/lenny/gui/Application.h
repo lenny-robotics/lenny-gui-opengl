@@ -14,10 +14,6 @@ public:
     void run();
 
 protected:
-    //--- Process
-    virtual void restart() {}
-    virtual void process() {}
-
     //--- Drawing
     virtual void prepareToDraw() {}
     virtual void wrapUpDraw() {}
@@ -44,15 +40,15 @@ private:
     void draw();
 
 protected:
+    //--- Processes
+    //ToDo!
+
     //--- Scenes
     std::vector<Scene::SPtr> scenes;
 
     //--- Framerate
     bool limitFramerate = true;
     double targetFramerate = 60.0;
-
-    //--- Process
-    bool processIsRunning = false;
 
     //--- Settings
     bool showGui = true;
