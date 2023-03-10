@@ -15,8 +15,8 @@ public:
     glm::mat4 getRotation() const;
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix() const;
-    Ray getRayFromScreenCoordinates(double xPos, double yPos) const;
-    Eigen::Vector3d getGlobalPointFromScreenCoordinates(const Eigen::Vector3d& globalTargetPoint, double xPos, double yPos) const;
+    Ray getRayFromScreenCoordinates(double xPos, double yPos, const glm::vec4& viewportParams) const;
+    Eigen::Vector3d getGlobalPointFromScreenCoordinates(const Eigen::Vector3d& globalTargetPoint, double xPos, double yPos, const glm::vec4& viewportParams) const;
 
     //--- Set
     void setAspectRatio(double aspectRatio);
@@ -35,6 +35,9 @@ public:
     void printSettings() const;
     static void to_json(json& j, const Camera& o);
     static void from_json(const json& j, Camera& o);
+
+    //--- Sync
+    void sync(const Camera& otherCamera);
 
 private:
     //--- Interaction

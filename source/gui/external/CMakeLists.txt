@@ -37,12 +37,15 @@ endif ()
 
 # imgui
 if (NOT TARGET imgui)
-    FetchContent_Declare(
-            imgui #
-            URL https://github.com/ocornut/imgui/archive/refs/tags/v1.88.zip #
-            URL_HASH MD5=dcbd7d7786e1b507af3be287d37fd1ae #
-    )
-    fetch_repository(imgui)
+    #FetchContent_Declare(
+    #        imgui #
+    #        URL https://github.com/ocornut/imgui/archive/refs/tags/v1.88.zip #
+    #        URL_HASH MD5=dcbd7d7786e1b507af3be287d37fd1ae #
+    #)
+    #fetch_repository(imgui)
+
+    ###Comment: Downloaded imgui from `docking` on 15.01.2023 (https://github.com/ocornut/imgui/tree/docking)
+    set(imgui_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui-docking)
 
     file(GLOB IMGUI_SRC #
             ${imgui_SOURCE_DIR}/*.cpp #

@@ -66,4 +66,14 @@ void Light::from_json(const json& j, Light& o) {
     FROM_JSON(o, specularStrength)
 }
 
+void Light::sync(const Light& otherLight){
+    this->position = otherLight.position;
+    this->color = otherLight.color;
+    this->colorIntensity = otherLight.colorIntensity;
+    this->glowIntensity = otherLight.glowIntensity;
+    this->ambientStrength = otherLight.ambientStrength;
+    this->diffuseStrength = otherLight.diffuseStrength;
+    this->specularStrength = otherLight.specularStrength;
+}
+
 }  // namespace lenny::gui

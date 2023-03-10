@@ -3,45 +3,51 @@
 #include <imgui_impl_opengl3.h>
 #include <lenny/gui/Application.h>
 #include <lenny/gui/Gui.h>
-#include <lenny/gui/ImGui.h>
 #include <lenny/gui/Plot.h>
 #include <lenny/gui/Renderer.h>
 #include <lenny/gui/Shaders.h>
 #include <lenny/tools/Logger.h>
 #include <lenny/tools/Timer.h>
+//#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+//#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 namespace lenny::gui {
 
-Application::Application(const std::string &title) {
-    initializeGLFW(title);
+Application::Application(const std::string &title, const std::string &iconPath) {
+    //Initialize everything
+    initializeGLFW(title, iconPath);
     initializeOpenGL();
     initializeImGui();
     setCallbacks();
     glfwMaximizeWindow(this->glfwWindow);
-    setCameraAspectRatio();
     Shaders::initialize();
     setGuiAndRenderer();
 }
 
 Application::~Application() {
-    //Terminate process
-    if (useSeparateProcessThread && processIsRunning) {
-        processIsRunning = false;
-        processThread.join();
-    }
-
     //Terminate ImGui
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
     ImPlot::DestroyContext();
     ImGui::DestroyContext();
 
     //Terminate glfw
+    glfwDestroyWindow(this->glfwWindow);
     glfwTerminate();
 }
 
-void Application::initializeGLFW(const std::string &title) {
+void Application::initializeGLFW(const std::string &title, const std::string &iconPath) {
     //Initialize
     if (!glfwInit())
         LENNY_LOG_ERROR("GLFW: initialization failed!");
+
+    //Set glfw window hints
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4.6);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4.6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 8);
 
     //Get primary monitor
     GLFWmonitor *monitor = glfwGetPrimaryMonitor();
@@ -53,46 +59,37 @@ void Application::initializeGLFW(const std::string &title) {
     if (!mode)
         LENNY_LOG_ERROR("GLFW: video mode could not be determined!");
 
-    //Set window dimensions
-    const int borderLeft = 2;
-    const int borderTop = 70;
-    const int borderRight = 2;
-    const int borderBottom = 105;
-
-    this->width = mode->width - borderLeft - borderRight;
-    this->height = mode->height - borderTop - borderBottom;
-
-    //Set glfw window hints
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4.6);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4.6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_SAMPLES, 8);
-
-    //Set pixel ratio
-    float xScale, yScale;
-    glfwGetMonitorContentScale(monitor, &xScale, &yScale);
-    this->pixelRatio = xScale;
-
     //Create window
-    this->glfwWindow = glfwCreateWindow(this->width, this->height, title.c_str(), nullptr, nullptr);
+    this->glfwWindow = glfwCreateWindow(mode->width, mode->height, title.c_str(), nullptr, nullptr);
     if (!this->glfwWindow)
         LENNY_LOG_ERROR("GLFW: Failed to create window!");
     glfwMakeContextCurrent(this->glfwWindow);
 
+    //Setup icon
+    const std::ifstream iconFile(iconPath.c_str());
+    if (iconFile.good()) {
+        GLFWimage image;
+        image.pixels = stbi_load(iconPath.c_str(), &image.width, &image.height, nullptr, 4);
+        glfwSetWindowIcon(this->glfwWindow, 1, &image);
+        stbi_image_free(image.pixels);
+    } else {
+        LENNY_LOG_WARNING("Icon file path `%s` could not be found", iconPath.c_str())
+    }
+
     //Disable waiting for framerate of glfw window
     glfwSwapInterval(0);
-
-    //Initialize glad
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-        LENNY_LOG_ERROR("Failed to initialize glad!");
 }
 
 inline void GLAPIENTRY GLCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam) {
     if (type == GL_DEBUG_TYPE_ERROR)
-        LENNY_LOG_WARNING("GL CALLBACK ERROR: %s type = 0x%x, severity = 0x%x, message = %s", type, severity, message);
+        LENNY_LOG_WARNING("GL CALLBACK ERROR: type = '0x%x', severity = '0x%x', message = '%s'", type, severity, message);
 }
 
 void Application::initializeOpenGL() {
+    //Initialize glad
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+        LENNY_LOG_ERROR("Failed to initialize glad!");
+
     // Enable error callback
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(GLCallback, 0);
@@ -112,17 +109,51 @@ void Application::initializeImGui() {
     ImGui::CreateContext();
     ImPlot::CreateContext();
 
-    //Set font
+    //Set io
     ImGuiIO &io = ImGui::GetIO();
-    ImFontConfig cfg;
-    cfg.SizePixels = 40.f * this->pixelRatio;
-    cfg.GlyphOffset.y = this->pixelRatio;  //Necessary?
-    io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/Roboto-Medium.ttf", 15.f * this->pixelRatio, &cfg);
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+
+    //Set font
+    const auto [windowWidth, windowHeight] = getCurrentWindowSize();
+    const float fontSize = 11.f * (float)windowWidth / (float)windowHeight;
+    io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Bold.ttf", fontSize);
+    io.FontDefault = io.Fonts->AddFontFromFileTTF(IMGUI_FONT_FOLDER "/OpenSans-Regular.ttf", fontSize);
 
     //Set style
-    ImGuiStyle &style = ImGui::GetStyle();
-    style.ScaleAllSizes(this->pixelRatio);
+    ImGui::StyleColorsDark();
+
+    //Set colors
+    auto &colors = ImGui::GetStyle().Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4{0.1f, 0.105f, 0.11f, 1.0f};
+
+    //Headers
+    colors[ImGuiCol_Header] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_HeaderHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_HeaderActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    //Buttons
+    colors[ImGuiCol_Button] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_ButtonHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_ButtonActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    //Frame BG
+    colors[ImGuiCol_FrameBg] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+    colors[ImGuiCol_FrameBgHovered] = ImVec4{0.3f, 0.305f, 0.31f, 1.0f};
+    colors[ImGuiCol_FrameBgActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+
+    //Tabs
+    colors[ImGuiCol_Tab] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabHovered] = ImVec4{0.38f, 0.3805f, 0.381f, 1.0f};
+    colors[ImGuiCol_TabActive] = ImVec4{0.28f, 0.2805f, 0.281f, 1.0f};
+    colors[ImGuiCol_TabUnfocused] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4{0.2f, 0.205f, 0.21f, 1.0f};
+
+    //Title
+    colors[ImGuiCol_TitleBg] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgActive] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4{0.15f, 0.1505f, 0.151f, 1.0f};
 
     //Initialize
     ImGui_ImplGlfw_InitForOpenGL(this->glfwWindow, true);
@@ -139,60 +170,65 @@ void Application::setCallbacks() {
     //Resize window
     glfwSetFramebufferSizeCallback(this->glfwWindow, [](GLFWwindow *window, int width, int height) {
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->resizeWindowCallback(width, height);
+        //Set viewport
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, width, height);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->resizeWindowCallback(width, height);
     });
 
     //Keyboard key
     glfwSetKeyCallback(this->glfwWindow, [](GLFWwindow *window, int key, int scancode, int action, int mods) {
-        //Special treatment for escape key (close application)
+        //ImGui
+        ImGuiIO &io = ImGui::GetIO();
+        if (io.WantCaptureKeyboard || io.WantTextInput)
+            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
         if (key == GLFW_KEY_ESCAPE) {
-            if (app->useSeparateProcessThread && app->processIsRunning) {
-                app->processIsRunning = false;
-                app->processThread.join();
-            }
             glfwSetWindowShouldClose(window, GL_TRUE);
             return;
         }
+        if (action == GLFW_PRESS || action == GLFW_RELEASE) {
+            //Processes
+            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+                for(auto& process : app->processes)
+                    process->toggle();
+            if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+                for(auto& process : app->processes)
+                    process->step();
+            if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+                for(auto& process : app->processes)
+                    process->restart();
 
-        //Update camera parameters
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->camera.updateKeyboardParameters(key, action);
+            //Scene callbacks
+            for (auto &scene : app->scenes)
+                scene->keyboardKeyCallback(key, action);
 
-        //ImGui
-        ImGuiIO &io = ImGui::GetIO();
-        if (io.WantCaptureKeyboard || io.WantTextInput) {
-            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-            return;
+            //Screenshot
+            if (key == GLFW_KEY_S && action == GLFW_PRESS)
+                app->saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
         }
-
-        //Call app callback function
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->keyboardKeyCallback(key, action);
     });
 
     //Mouse button
     glfwSetMouseButtonCallback(this->glfwWindow, [](GLFWwindow *window, int button, int action, int mods) {
-        //Get app parameters
-        Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        double xPos, yPos;
-        glfwGetCursorPos(window, &xPos, &yPos);
-
-        //Update camera parameters
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->camera.updateMouseButtonParameters(xPos, yPos, button, action);
-
         //ImGui
         ImGuiIO &io = ImGui::GetIO();
-        io.AddMouseButtonEvent(button, (action == GLFW_PRESS));
-        if (io.WantCaptureMouse) {
+        if (io.WantCaptureMouse)
             ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-            return;
-        }
 
-        //Call app callback function
-        if (action == GLFW_PRESS || action == GLFW_RELEASE)
-            app->mouseButtonCallback(xPos, yPos, button, action);
+        //App
+        Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
+        if (action == GLFW_PRESS || action == GLFW_RELEASE) {
+            double xPos, yPos;
+            glfwGetCursorPos(window, &xPos, &yPos);
+            //Scene callbacks
+            for (auto &scene : app->scenes)
+                scene->mouseButtonCallback(xPos, yPos, scene->getRayFromScreenCoordinates(xPos, yPos), button, action);
+        }
     });
 
     //Mouse move
@@ -200,34 +236,35 @@ void Application::setCallbacks() {
         //ImGui
         ImGuiIO &io = ImGui::GetIO();
         io.AddMousePosEvent((float)xPos, (float)yPos);
-        if (io.WantCaptureMouse) {
-            return;
-        }
 
-        //Application
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->mouseMoveCallback(xPos, yPos);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->mouseMoveCallback(xPos, yPos, scene->getRayFromScreenCoordinates(xPos, yPos));
     });
 
     //Mouse scroll
     glfwSetScrollCallback(this->glfwWindow, [](GLFWwindow *window, double xOffset, double yOffset) {
         //ImGui
         ImGuiIO &io = ImGui::GetIO();
-        io.AddMouseWheelEvent((float)xOffset, (float)yOffset);
-        if (io.WantCaptureMouse) {
+        if (io.WantCaptureMouse)
             ImGui_ImplGlfw_ScrollCallback(window, xOffset, yOffset);
-            return;
-        }
 
-        //Application
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->mouseScrollCallback(xOffset, yOffset);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->mouseScrollCallback(xOffset, yOffset);
     });
 
     //File drop
     glfwSetDropCallback(this->glfwWindow, [](GLFWwindow *window, int count, const char **filenames) {
+        //App
         Application *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-        app->fileDropCallback(count, filenames);
+        //Scene callbacks
+        for (auto &scene : app->scenes)
+            scene->fileDropCallback(count, filenames);
     });
 }
 
@@ -241,23 +278,19 @@ void Application::setGuiAndRenderer() {
     tools::Renderer::I = std::make_unique<gui::Renderer>();
 }
 
-void Application::setCameraAspectRatio() {
-    camera.setAspectRatio((double)this->width / (double)this->height);
-}
-
 void Application::run() {
     tools::Timer timer;
     while (!glfwWindowShouldClose(this->glfwWindow)) {
-        //Process
-        if (!useSeparateProcessThread && processIsRunning)
-            process();
+        //Poll IO events (keyboard, mouse, etc.)
+        glfwPollEvents();
 
         //Draw
+        prepareToDraw();
         draw();
+        wrapUpDraw();
 
-        //Swap glfw buffers and poll IO events (keyboard, mouse, etc.)
+        //Swap glfw buffers
         glfwSwapBuffers(this->glfwWindow);
-        glfwPollEvents();
 
         //Limit frame rate
         if (limitFramerate && (1.0 / targetFramerate) > timer.time())
@@ -267,82 +300,71 @@ void Application::run() {
         currentFramerate = 1.0 / timer.time();
         timer.restart();
     }
-
-    //Terminate glfw
-    glfwTerminate();
 }
 
-void Application::drawGui() {
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
-    ImGui::Begin("Main Menu");
+void Application::drawMenuBar() {
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("Processes")) {
+            for(Process::SPtr process : processes)
+                process->drawGui();
 
-    ImGui::Text("Play:");
-    ImGui::SameLine();
-
-    if (ImGui::ToggleButton("Play", &processIsRunning))
-        processCallback();
-
-    if (!processIsRunning) {
-        ImGui::SameLine();
-        if (ImGui::ArrowButton("tmp", ImGuiDir_Right))
-            process();
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Restart"))
-        restart();
-
-    if (ImGui::TreeNode("Settings")) {
-        camera.drawGui();
-        light.drawGui();
-        ground.drawGui();
-
-        if (ImGui::Button("Print Settings")) {
-            camera.printSettings();
-            light.printSettings();
-            ground.printSettings();
+            ImGui::EndMenu();
         }
 
-        ImGui::TreePop();
+        if (ImGui::BeginMenu("Scenes")) {
+            for (uint i = 0; i < scenes.size(); i++) {
+                if (ImGui::TreeNode(scenes.at(i)->description.c_str())) {
+                    scenes.at(i)->drawGui();
+                    if (ImGui::Button("Remove"))
+                        scenes.erase(scenes.begin() + i);
+                    ImGui::TreePop();
+                }
+            }
+
+            ImGui::Separator();
+            if (ImGui::Button("Add Scene")) {
+                const auto &[width, height] = getCurrentWindowSize();
+                scenes.emplace_back(std::make_shared<Scene>("Scene-" + std::to_string(scenes.size() + 1), width, height));
+                if (scenes.size() > 1)
+                    scenes.back()->copyCallbacksFromOtherScene(scenes.at(scenes.size() - 2));
+            }
+
+            ImGui::Separator();
+            ImGui::Checkbox("Sync Scenes", &syncScenes);
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Drawing")) {
+            static double drawFramerate = currentFramerate;
+            static tools::Timer timer;
+            if (timer.time() > 0.333) {
+                drawFramerate = currentFramerate;
+                timer.restart();
+            }
+            ImGui::Text("Current FPS: %.2f", drawFramerate);
+            ImGui::Checkbox("Limit FPS to", &limitFramerate);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(50.f);
+            ImGui::InputDouble(" ", &targetFramerate, 0.0, 0.0, "%.1f");
+
+            ImGui::Separator();
+            ImGui::Checkbox("Show Console", &showConsole);
+            ImGui::Checkbox("Show Gui", &showGui);
+
+            ImGui::Separator();
+            if (ImGui::Button("Save Screenshot"))
+                saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
+
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
     }
-
-    if (ImGui::TreeNode("Drawing")) {
-        ImGui::Checkbox("Show Ground", &showGround);
-        ImGui::Checkbox("Show Origin", &showOrigin);
-        ImGui::Checkbox("Show FPS", &showFPS);
-        ImGui::Checkbox("Show Console", &showConsole);
-
-        ImGui::TreePop();
-    }
-
-    ImGui::End();
-}
-
-void Application::drawFPS() {
-    static double drawFramerate = currentFramerate;
-    static tools::Timer timer;
-    if (timer.time() > 0.333) {
-        drawFramerate = currentFramerate;
-        timer.restart();
-    }
-
-    ImGui::SetNextWindowPos(ImVec2(this->width - pixelRatio * 200, 0), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(pixelRatio * 200, pixelRatio * 80), ImGuiCond_Always);
-    ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
-    char title[100];
-    sprintf(title, "FPS: %.2f###FPS", drawFramerate);
-    ImGui::Begin(title);
-    ImGui::Checkbox("Limit FPS", &limitFramerate);
-    ImGui::SameLine(pixelRatio * 100);
-    if (limitFramerate)
-        ImGui::InputDouble("Target FPS", &targetFramerate);
-    ImGui::End();
 }
 
 void Application::drawConsole() {
-    ImGui::SetNextWindowSize(ImVec2(this->width / 2, pixelRatio * 350), ImGuiCond_Once);
-    ImGui::SetNextWindowPos(ImVec2(this->width / 2, this->height - pixelRatio * 350), ImGuiCond_Once);
-
     ImGui::Begin("Console");
     const auto &msgBuffer = tools::Logger::getMessageBuffer();
     for (const auto &[color, msg] : msgBuffer) {
@@ -354,80 +376,128 @@ void Application::drawConsole() {
     ImGui::End();
 }
 
-void Application::resizeWindowCallback(int width, int height) {
-    this->width = width;
-    this->height = height;
-    glViewport(0, 0, width, height);
-    camera.setAspectRatio((double)width / (double)height);
+std::pair<int, int> Application::getCurrentWindowPosition() const {
+    int pos_x, pos_y;
+    glfwGetWindowPos(this->glfwWindow, &pos_x, &pos_y);
+    return {pos_x, pos_y};
 }
 
-void Application::keyboardKeyCallback(int key, int action) {
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-        processIsRunning = !processIsRunning;
-        processCallback();
-    } else if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !processIsRunning) {
-        process();
-    }
-}
-
-void Application::mouseMoveCallback(double xPos, double yPos) {
-    camera.processMouseMove(xPos, yPos);
-}
-
-void Application::mouseScrollCallback(double xOffset, double yOffset) {
-    camera.processMouseScroll(xOffset, yOffset);
+std::pair<int, int> Application::getCurrentWindowSize() const {
+    int width, height;
+    glfwGetFramebufferSize(this->glfwWindow, &width, &height);
+    return {width, height};
 }
 
 double Application::getDt() const {
     return 1.0 / currentFramerate;
 }
 
-void Application::baseProcess() {
-    while (processIsRunning)
-        process();
-}
-
-void Application::processCallback() {
-    if (!useSeparateProcessThread)
-        return;
-
-    if (processIsRunning) {
-        processThread = std::thread(&Application::baseProcess, this);
-        LENNY_LOG_INFO("Process thread started...\n");
-    } else {
-        processThread.join();
-        LENNY_LOG_INFO("Process thread terminated...\n");
+bool Application::saveScreenshotToFile(const std::string &filePath) const {
+    //Check extension
+    if(!tools::utils::checkFileExtension(filePath, "png")){
+        LENNY_LOG_WARNING("Invalid file extension for file path `%s`. It needs to be `png`", filePath.c_str())
+        return false;
     }
+
+    //Get pixels
+    int width, height;
+    glfwGetFramebufferSize(glfwWindow, &width, &height);
+    GLsizei nrChannels = 3;
+    GLsizei stride = nrChannels * width;
+    stride += (stride % 4) ? (4 - stride % 4) : 0;
+    GLsizei bufferSize = stride * height;
+    std::vector<char> buffer(bufferSize);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+
+    //Save to file
+    stbi_flip_vertically_on_write(true);
+    const bool successful = stbi_write_png(filePath.c_str(), width, height, nrChannels, buffer.data(), stride);
+    if (successful)
+        LENNY_LOG_INFO("Successfully saved screenshot to file `%s`", filePath.c_str())
+    else
+        LENNY_LOG_WARNING("Could not save screenshot into file `%s`", filePath.c_str())
+    return successful;
 }
 
 void Application::draw() {
-    //--- OpenGL
-    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    //Prepare glfw
+    const auto [windowWidth, windowHeight] = getCurrentWindowSize();
+    if(windowWidth < 1 || windowHeight < 1)
+        return;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, windowWidth, windowHeight);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-    Shaders::update(camera, light);
-    prepareToDraw();
-
-    if (showGround)
-        ground.drawScene();
-    if (showOrigin)
-        Renderer::I->drawCoordinateSystem(Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), 0.1, 0.01);
-    drawScene();
-
-    wrapUpDraw();
-
-    //--- ImGui
+    //Prepare imgui
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    if (showFPS)
-        drawFPS();
-    if (showConsole)
-        drawConsole();
-    drawGui();
+    //Setup dock space window
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGuiWindowFlags dockSpaceWindowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    dockSpaceWindowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    dockSpaceWindowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    static bool dockspaceOpen = true;
+    ImGui::Begin("DockSpace", &dockspaceOpen, dockSpaceWindowFlags);
+    ImGui::PopStyleVar(3);
 
-    ImGui::EndFrame();
+    //Draw DockSpace
+    ImGuiIO &io = ImGui::GetIO();
+    ImGuiStyle &style = ImGui::GetStyle();
+    const float minWinSizeX = style.WindowMinSize.x;
+    style.WindowMinSize.x = (float)windowWidth / 6.f;
+    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
+    }
+    style.WindowMinSize.x = minWinSizeX;
+
+    //Draw menu bar
+    drawMenuBar();
+
+    //Sync scenes
+    if (syncScenes && scenes.size() > 1)
+        for (int i = 1; i < scenes.size(); i++)
+            scenes.at(i)->sync(scenes.at(0));
+
+    //Draw scenes
+    for (auto &scene : scenes) {
+        ImGui::SetNextWindowPos(ImVec2(0.25 * windowWidth, ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(0.75 * windowWidth, 0.75 * windowHeight - ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
+        scene->draw();
+    }
+
+    //Draw console
+    if (showConsole) {
+        ImGui::SetNextWindowPos(ImVec2(0.f, 0.75 * windowHeight), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(windowWidth, 0.25 * windowHeight), ImGuiCond_FirstUseEver);
+        drawConsole();
+    }
+
+    //Draw gui
+    if (showGui) {
+        ImGui::SetNextWindowPos(ImVec2(0.f, ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(0.25 * windowWidth, 0.75 * windowHeight - ImGui::GetFrameHeight()), ImGuiCond_FirstUseEver);
+        drawGui();
+    }
+
+    //Draw guizmo
+    drawGuizmo();
+
+    //End for docking
+    ImGui::End();
+
+    //Wrap up imgui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
