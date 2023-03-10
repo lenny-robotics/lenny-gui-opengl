@@ -424,9 +424,11 @@ bool Application::saveScreenshotToFile(const std::string &filePath) const {
 void Application::draw() {
     //Prepare glfw
     const auto [windowWidth, windowHeight] = getCurrentWindowSize();
+    if(windowWidth < 1 || windowHeight < 1)
+        return;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, windowWidth, windowHeight);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     //Prepare imgui

@@ -31,17 +31,22 @@ public:
     bool showMaterials = true;
 
     struct Model {
-        Model(const std::string& filePath, const double scale) : mesh(filePath), scale(scale * Eigen::Vector3d::Ones()) {}
+        Model(const std::string& filePath, const Eigen::Vector3d& position, const Eigen::QuaternionD& orientation, const double& scale)
+            : mesh(filePath), position(position), orientation(orientation), scale(scale * Eigen::Vector3d::Ones()) {}
 
         gui::Model mesh;
-        Eigen::Vector3d position = Eigen::Vector3d::Random();
-        Eigen::QuaternionD orientation = Eigen::QuaternionD::Identity();
+        Eigen::Vector3d position;
+        Eigen::QuaternionD orientation;
         Eigen::Vector3d scale;
     };
-    std::vector<Model> models = {Model(LENNY_GUI_TESTAPP_FOLDER "/config/nanosuit/NanoSuit.obj", 0.1),
-                                 Model(LENNY_GUI_TESTAPP_FOLDER "/config/gripper/Gripper.obj", 3.0), Model(LENNY_GUI_TESTAPP_FOLDER "/config/car/Car.obj", 0.1),
-                                 Model(LENNY_GUI_TESTAPP_FOLDER "/config/widowx/Base.stl", 0.003),
-                                 Model(LENNY_GUI_TESTAPP_FOLDER "/config/spot/Body.dae", 1.0)};
+    std::vector<Model> models = {
+        Model(LENNY_GUI_TESTAPP_FOLDER "/config/yumi/Base.obj", Eigen::Vector3d(-1.0, 0.5, 0.0),
+              Eigen::QuaternionD(tools::utils::rotY(-PI / 2.0) * tools::utils::rotX(-PI / 2.0)), 1.0),
+        Model(LENNY_GUI_TESTAPP_FOLDER "/config/gripper/Gripper.obj", Eigen::Vector3d(-0.5, 0.5, 0.0), Eigen::QuaternionD::Identity(), 3.0),
+        Model(LENNY_GUI_TESTAPP_FOLDER "/config/nao/12211_Robot_l2.obj", Eigen::Vector3d(0.0, 0.5, 0.0), Eigen::QuaternionD(tools::utils::rotX(-PI / 2.0)),
+              0.03),
+        Model(LENNY_GUI_TESTAPP_FOLDER "/config/widowx/Base.stl", Eigen::Vector3d(0.5, 0.5, 0.0), Eigen::QuaternionD(tools::utils::rotX(-PI / 2.0)), 0.003),
+        Model(LENNY_GUI_TESTAPP_FOLDER "/config/spot/Body.dae", Eigen::Vector3d(1.0, 0.5, 0.0), Eigen::QuaternionD::Identity(), 1.0)};
     Model* selectedModel = nullptr;
 
     float data_x = 0.f;

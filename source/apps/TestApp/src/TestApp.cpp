@@ -133,7 +133,7 @@ void TestApp::mouseButtonCallback(double xPos, double yPos, Ray ray, int button,
 }
 
 void TestApp::fileDropCallback(int count, const char** fileNames) {
-    models.emplace_back(fileNames[count - 1], 1.0);
+    models.emplace_back(fileNames[count - 1], Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), 1.0);
 }
 
 }  // namespace lenny
