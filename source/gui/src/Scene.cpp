@@ -1,5 +1,7 @@
 #ifdef WIN32
 #pragma warning(disable : 4312)
+#else
+#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
 #endif
 
 // clang-format off
