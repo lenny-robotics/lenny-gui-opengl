@@ -5,40 +5,41 @@
 
 namespace lenny::gui {
 
-void Ground::drawScene() const {
-    static const double alpha = 1.0;
+Ground::Ground(int size) {
+    setSize(size);
+}
 
-    //Draw plane
-    if (showPlane) {
-        static const Eigen::Vector3d pos = Eigen::Vector3d::Zero();
-        static const Eigen::QuaternionD ori = Eigen::QuaternionD::Identity();
-        const Eigen::Vector2d dim = 2.0 * (double)size * Eigen::Vector2d::Ones();
-        Eigen::Vector4d color;
-        color << this->intensity * this->groundColor, alpha;
-        Renderer::I->drawPlane(pos, ori, dim, color);
-    }
+void Ground::setSize(const int size) {
+    this->size = size;
 
-    //Grid
-    if (showGrid) {
-        static const Eigen::QuaternionD ori = Eigen::QuaternionD::Identity();
-        Eigen::Vector4d color;
-        color << this->intensity * this->gridColor, alpha;
-        for (int i = -size; i <= size; i++) {
-            Renderer::I->drawCuboid(Eigen::Vector3d((double)i, 0.001, 0.0), ori, Eigen::Vector3d(gridThickness, 1e-3, (double)size * 2.0), color);
-            Renderer::I->drawCuboid(Eigen::Vector3d(0.0, 0.001, (double)i), ori, Eigen::Vector3d((double)size * 2.0, 1e-3, gridThickness), color);
+    //Reset model
+    std::vector<Model::Mesh::Vertex> vertices;
+    std::vector<uint> indices;
+    Model::Mesh::Material material = model.meshes.back().getMaterial().value();
+    for (int i = -size; i < size; i++) {
+        for (int j = -size; j < size; j++) {
+            for(const auto& index : tile.meshes.back().getIndices()) {
+                indices.emplace_back(index + (uint)vertices.size());
+            }
+            for(const auto& vertex : tile.meshes.back().getVertices()) {
+                vertices.emplace_back(vertex);
+                vertices.back().position += glm::vec3((double)i + 0.5, 0.0, (double)j + 0.5);
+            }
         }
     }
+    model.meshes.back() = Model::Mesh(vertices, indices, material);
+}
+
+
+void Ground::drawScene() const {
+    model.draw(Eigen::Vector3d::Zero(), Eigen::QuaternionD::Identity(), Eigen::Vector3d::Ones(), std::nullopt, alpha);
 }
 
 void Ground::drawGui() {
     if (ImGui::TreeNode("Ground")) {
-        ImGui::Checkbox("Show Plane", &showPlane);
-        ImGui::Checkbox("Show Grid", &showGrid);
-        ImGui::SliderInt("Size", &size, 1, 100);
-        ImGui::SliderDouble("Grid Thickness", &gridThickness, 0.001, 0.1);
-        ImGui::SliderDouble("Intensity", &intensity, 0.0, 2.0);
-        ImGui::ColorPicker3("Ground Color", groundColor);
-        ImGui::ColorPicker3("Grid Color", gridColor);
+        if(ImGui::SliderInt("Size", &size, 1, 100))
+            setSize(size);
+        ImGui::SliderDouble("Alpha", &alpha, 0.0, 1.0);
         if (ImGui::Button("Print Settings"))
             printSettings();
 
@@ -50,41 +51,23 @@ void Ground::printSettings() const {
     using tools::Logger;
     LENNY_LOG_PRINT(Logger::DEFAULT, "--- GROUND SETTINGS ---\n");
     LENNY_LOG_PRINT(Logger::DEFAULT, "ground.size = %d;\n", size);
-    LENNY_LOG_PRINT(Logger::DEFAULT, "ground.gridThickness = %lf;\n", gridThickness);
-    LENNY_LOG_PRINT(Logger::DEFAULT, "ground.intensity = %lf;\n", intensity);
-    LENNY_LOG_PRINT(Logger::DEFAULT, "ground.groundColor = Eigen::Vector3d(%lf, %lf, %lf);\n", groundColor.x(), groundColor.y(), groundColor.z());
-    LENNY_LOG_PRINT(Logger::DEFAULT, "ground.gridColor = Eigen::Vector3d(%lf, %lf, %lf);\n", gridColor.x(), gridColor.y(), gridColor.z());
+    LENNY_LOG_PRINT(Logger::DEFAULT, "ground.alpha = %lf;\n", alpha);
     LENNY_LOG_PRINT(Logger::DEFAULT, "------------------------\n");
 }
 
 void Ground::to_json(json& j, const Ground& o) {
     TO_JSON(o, size)
-    TO_JSON(o, gridThickness)
-    TO_JSON(o, intensity)
-    TO_JSON(o, groundColor)
-    TO_JSON(o, gridColor)
-    TO_JSON(o, showPlane)
-    TO_JSON(o, showGrid)
+    TO_JSON(o, alpha)
 }
 
 void Ground::from_json(const json& j, Ground& o) {
     FROM_JSON(o, size)
-    FROM_JSON(o, gridThickness)
-    FROM_JSON(o, intensity)
-    FROM_JSON(o, groundColor)
-    FROM_JSON(o, gridColor)
-    FROM_JSON(o, showPlane)
-    FROM_JSON(o, showGrid)
+    FROM_JSON(o, alpha)
 }
 
-void Ground::sync(const Ground& otherGround){
+void Ground::sync(const Ground& otherGround) {
     this->size = otherGround.size;
-    this->gridThickness = otherGround.gridThickness;
-    this->intensity = otherGround.intensity;
-    this->groundColor = otherGround.groundColor;
-    this->gridColor = otherGround.gridColor;
-    this->showPlane = otherGround.showPlane;
-    this->showGrid = otherGround.showGrid;
+    this->alpha = otherGround.alpha;
 }
 
 }  // namespace lenny::gui

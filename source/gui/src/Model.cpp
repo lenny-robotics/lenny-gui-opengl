@@ -64,6 +64,18 @@ void Model::Mesh::draw(const std::optional<Eigen::Vector3d> &color) const {
     glBindVertexArray(0);
 }
 
+const std::vector<Model::Mesh::Vertex> &Model::Mesh::getVertices() const {
+    return vertices;
+}
+
+const std::vector<uint> &Model::Mesh::getIndices() const {
+    return indices;
+}
+
+const std::optional<Model::Mesh::Material> &Model::Mesh::getMaterial() const {
+    return material;
+}
+
 void Model::Mesh::setup() {
     //Create buffers/arrays
     glGenVertexArrays(1, &VAO);
@@ -74,7 +86,15 @@ void Model::Mesh::setup() {
     glBindVertexArray(VAO);
 
     //Update vertices and indices info
-    update();
+    if (vertices.size() > 0) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
+    }
+
+    if (indices.size() > 0) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
+    }
 
     //Set the vertex attribute pointers for ...
     //... positions
@@ -93,17 +113,7 @@ void Model::Mesh::setup() {
     glBindVertexArray(0);
 }
 
-void Model::Mesh::update() {
-    if (vertices.size() > 0) {
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);
-    }
-
-    if (indices.size() > 0) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint), &indices[0], GL_STATIC_DRAW);
-    }
-}
+//--------------------------------------------------------------------------------------------------
 
 Model::Model(const std::vector<Mesh> &meshes) : tools::Model(""), meshes(meshes) {}
 
@@ -135,11 +145,14 @@ std::optional<Model::HitInfo> Model::hitByRay(const Eigen::Vector3d &position, c
     double t = HUGE_VALF;
     Eigen::Vector3d hitPoint, hitNormal;
 
-    for (const Mesh &m : meshes) {
-        for (uint i = 0; i < m.indices.size() / 3; ++i) {
-            glm::vec3 v0 = m.vertices[m.indices[3 * i + 0]].position;
-            glm::vec3 v1 = m.vertices[m.indices[3 * i + 1]].position;
-            glm::vec3 v2 = m.vertices[m.indices[3 * i + 2]].position;
+    for (const Mesh &mesh : meshes) {
+        const auto& vertices = mesh.getVertices();
+        const auto& indices = mesh.getIndices();
+
+        for (uint i = 0; i < indices.size() / 3; ++i) {
+            glm::vec3 v0 = vertices[indices[3 * i + 0]].position;
+            glm::vec3 v1 = vertices[indices[3 * i + 1]].position;
+            glm::vec3 v2 = vertices[indices[3 * i + 2]].position;
 
             float t_ = 0.f;
             glm::vec2 bary;
@@ -420,11 +433,13 @@ void Model::simplify(const float &threshold, const float &targetError, const boo
                         positions.size(), originalVertexCount, simplificationError);
 
         //Update the stored meshes, so we can see the result
-        meshes.at(i).vertices.clear();
+        std::vector<Model::Mesh::Vertex> vertices;
         for (int j = 0; j < vertexCount; j++)
-            meshes.at(i).vertices.push_back({positions.at(j), normals.at(j), texCoords.at(j)});
-        meshes.at(i).indices = indices;
-        meshes.at(i).setup();
+            vertices.push_back({positions.at(j), normals.at(j), texCoords.at(j)});
+        if(meshes.at(i).getMaterial().has_value())
+            meshes.at(i) = Model::Mesh(vertices, indices, meshes.at(i).getMaterial().value());
+        else
+            meshes.at(i) = Model::Mesh(vertices, indices);
 
         //Update the scene, so we can potentially export it
         if (saveToFile) {

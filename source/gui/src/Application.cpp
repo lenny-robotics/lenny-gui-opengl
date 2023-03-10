@@ -356,11 +356,11 @@ void Application::drawMenuBar() {
                 timer.restart();
             }
             ImGui::Text("Current FPS: %.2f", drawFramerate);
-            ImGui::Checkbox("Limit FPS", &limitFramerate);
+            ImGui::Checkbox("Limit FPS to", &limitFramerate);
             if (limitFramerate) {
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth(50.f);
-                ImGui::InputDouble("Target FPS", &targetFramerate, 0.0, 0.0, "%.1f");
+                ImGui::InputDouble(" ", &targetFramerate, 0.0, 0.0, "%.1f");
             }
 
             ImGui::Separator();

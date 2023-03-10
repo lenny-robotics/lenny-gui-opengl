@@ -53,17 +53,17 @@ void Renderer::drawCylinder(const Eigen::Vector3d& COM, const Eigen::QuaternionD
 
 void Renderer::drawTetrahedron(const std::array<Eigen::Vector3d, 4>& globalPoints, const Eigen::Vector4d& color) const {
     //Generate model
-    static const std::vector<Model::Mesh::Vertex> vertices(4, Model::Mesh::Vertex());
+    static std::vector<Model::Mesh::Vertex> vertices(4, Model::Mesh::Vertex());
     static const std::vector<uint> indices = {0, 1, 2, 1, 2, 3, 0, 1, 3, 0, 2, 3};
     static Model model({{vertices, indices}});
 
     //Update vertices
     static const glm::vec3 normal = utils::toGLM(Eigen::Vector3d::Ones().normalized());
     for (int i = 0; i < 4; i++) {
-        model.meshes.at(0).vertices.at(i).position = utils::toGLM(globalPoints.at(i));
-        model.meshes.at(0).vertices.at(i).normal = normal;
+        vertices.at(i).position = utils::toGLM(globalPoints.at(i));
+        vertices.at(i).normal = normal;
     }
-    model.meshes.at(0).update();
+    model.meshes.at(0) = Model::Mesh(vertices, indices);
 
     //Draw model
     static const Eigen::Vector3d position = Eigen::Vector3d::Zero();

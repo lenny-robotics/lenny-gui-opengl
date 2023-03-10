@@ -33,16 +33,19 @@ public:
         Mesh(const std::vector<Vertex> &vertices, const std::vector<uint> &indices, const Material &material);
         ~Mesh() = default;
 
-        void setup();
-        void update();
         void draw(const std::optional<Eigen::Vector3d> &color) const;
 
-    public:
+        const std::vector<Vertex>& getVertices() const;
+        const std::vector<uint>& getIndices() const;
+        const std::optional<Material>& getMaterial() const;
+
+    private:
+        void setup();
+
+    private:
         std::vector<Vertex> vertices;
         std::vector<uint> indices;
         std::optional<Material> material;
-
-    private:
         uint VAO, VBO, EBO;
     };
 
