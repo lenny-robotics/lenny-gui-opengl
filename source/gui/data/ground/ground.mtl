@@ -9,5 +9,5 @@ newmtl ground
   Kd 0.5880 0.5880 0.5880
   Ks 0.0000 0.0000 0.0000
   Ke 0.0000 0.0000 0.0000
-  map_Ka ground.png
-  map_Kd ground.png
+  map_Ka ground_arktis.png
+  map_Kd ground_arktis.png

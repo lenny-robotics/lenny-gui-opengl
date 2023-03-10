@@ -26,10 +26,10 @@ public:
 public:
     Eigen::Vector3d position = Eigen::Vector3d(20.0, 30.0, 20.0);
     Eigen::Vector3d color = Eigen::Vector3d(1.0, 1.0, 1.0);
-    double colorIntensity = 1.1;
+    double colorIntensity = 1.3;
     double glowIntensity = 0.4;
     float ambientStrength = 0.3f;
-    float diffuseStrength = 0.8f;
+    float diffuseStrength = 0.7f;
     float specularStrength = 0.0f;
 };
 

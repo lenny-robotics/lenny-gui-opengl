@@ -1,6 +1,5 @@
 #include <lenny/gui/Ground.h>
 #include <lenny/gui/ImGui.h>
-#include <lenny/gui/Renderer.h>
 #include <lenny/tools/Logger.h>
 
 namespace lenny::gui {
