@@ -3,7 +3,6 @@
 #include <imgui_impl_opengl3.h>
 #include <lenny/gui/Application.h>
 #include <lenny/gui/Gui.h>
-#include <lenny/gui/ImGui.h>
 #include <lenny/gui/Plot.h>
 #include <lenny/gui/Renderer.h>
 #include <lenny/gui/Shaders.h>
@@ -25,8 +24,6 @@ Application::Application(const std::string &title, const std::string &iconPath) 
     glfwMaximizeWindow(this->glfwWindow);
     Shaders::initialize();
     setGuiAndRenderer();
-    const auto [width, height] = getCurrentWindowSize();
-    scenes.emplace_back(std::make_shared<Scene>("Scene-1", width, height));
 }
 
 Application::~Application() {
@@ -116,7 +113,6 @@ void Application::initializeImGui() {
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 
     //Set font
@@ -127,11 +123,6 @@ void Application::initializeImGui() {
 
     //Set style
     ImGui::StyleColorsDark();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        ImGuiStyle &style = ImGui::GetStyle();
-        style.WindowRounding = 0.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
 
     //Set colors
     auto &colors = ImGui::GetStyle().Colors;
@@ -201,17 +192,24 @@ void Application::setCallbacks() {
             return;
         }
         if (action == GLFW_PRESS || action == GLFW_RELEASE) {
-            //ToDo!
-//            //Process
-//            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-//                app->processIsRunning = !app->processIsRunning;
-//            if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS && !app->processIsRunning)
-//                app->process();
-//            if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
-//                app->restart();
+            //Processes
+            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+                for(auto& process : app->processes)
+                    process->toggle();
+            if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
+                for(auto& process : app->processes)
+                    process->step();
+            if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
+                for(auto& process : app->processes)
+                    process->restart();
+
             //Scene callbacks
             for (auto &scene : app->scenes)
                 scene->keyboardKeyCallback(key, action);
+
+            //Screenshot
+            if (key == GLFW_KEY_S && action == GLFW_PRESS)
+                app->saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
         }
     });
 
@@ -307,19 +305,8 @@ void Application::run() {
 void Application::drawMenuBar() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Processes")) {
-//            ImGui::Text("Play:");
-//            ImGui::SameLine();
-//            ImGui::ToggleButton("Play", &processIsRunning);
-//
-//            if (!processIsRunning) {
-//                ImGui::Text("Step:");
-//                ImGui::SameLine();
-//                if (ImGui::ArrowButton("tmp", ImGuiDir_Right))
-//                    process();
-//            }
-//
-//            if (ImGui::Button("Restart"))
-//                restart();
+            for(Process::SPtr process : processes)
+                process->drawGui();
 
             ImGui::EndMenu();
         }
@@ -357,11 +344,9 @@ void Application::drawMenuBar() {
             }
             ImGui::Text("Current FPS: %.2f", drawFramerate);
             ImGui::Checkbox("Limit FPS to", &limitFramerate);
-            if (limitFramerate) {
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50.f);
-                ImGui::InputDouble(" ", &targetFramerate, 0.0, 0.0, "%.1f");
-            }
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(50.f);
+            ImGui::InputDouble(" ", &targetFramerate, 0.0, 0.0, "%.1f");
 
             ImGui::Separator();
             ImGui::Checkbox("Show Console", &showConsole);
@@ -408,6 +393,13 @@ double Application::getDt() const {
 }
 
 bool Application::saveScreenshotToFile(const std::string &filePath) const {
+    //Check extension
+    if(!tools::utils::checkFileExtension(filePath, "png")){
+        LENNY_LOG_WARNING("Invalid file extension for file path `%s`. It needs to be `png`", filePath.c_str())
+        return false;
+    }
+
+    //Get pixels
     int width, height;
     glfwGetFramebufferSize(glfwWindow, &width, &height);
     GLsizei nrChannels = 3;
@@ -418,6 +410,8 @@ bool Application::saveScreenshotToFile(const std::string &filePath) const {
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
     glReadBuffer(GL_FRONT);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+
+    //Save to file
     stbi_flip_vertically_on_write(true);
     const bool successful = stbi_write_png(filePath.c_str(), width, height, nrChannels, buffer.data(), stride);
     if (successful)
@@ -504,12 +498,6 @@ void Application::draw() {
     //Wrap up imgui
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        GLFWwindow *currentContext = glfwGetCurrentContext();
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
-        glfwMakeContextCurrent(currentContext);
-    }
 }
 
 }  // namespace lenny::gui

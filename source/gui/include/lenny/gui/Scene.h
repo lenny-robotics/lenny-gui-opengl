@@ -54,7 +54,6 @@ public:
     bool showOrigin = true;
 
 private:
-    bool open = true;
     std::array<float, 2> windowPos = {0.f, 0.f}, windowSize = {100.f, 100.f};
     bool blockCallbacks = false;
     uint frameBuffer, texture, renderBuffer;

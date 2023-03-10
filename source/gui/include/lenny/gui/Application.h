@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+#include <lenny/gui/Process.h>
 #include <lenny/gui/Scene.h>
 
 namespace lenny::gui {
@@ -41,7 +42,7 @@ private:
 
 protected:
     //--- Processes
-    //ToDo!
+    std::vector<Process::SPtr> processes;
 
     //--- Scenes
     std::vector<Scene::SPtr> scenes;

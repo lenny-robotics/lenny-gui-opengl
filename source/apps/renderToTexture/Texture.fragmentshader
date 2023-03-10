@@ -1,9 +1,0 @@
-#version 330 core
-
-uniform sampler2D renderedTexture;
-in vec2 textureCoordinates;
-out vec3 color;
-
-void main(){
-	color = texture(renderedTexture, textureCoordinates).xyz;
-}

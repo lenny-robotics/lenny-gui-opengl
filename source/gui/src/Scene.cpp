@@ -54,7 +54,7 @@ Scene::~Scene() {
 
 void Scene::draw() {
     //Begin ImGui window
-    ImGui::Begin(description.c_str(), &open, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+    ImGui::Begin(description.c_str(), nullptr, ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
 
     //Gather window info
     const bool isTitleBarHovered = ImGui::IsItemHovered();

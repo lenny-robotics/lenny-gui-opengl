@@ -11,9 +11,9 @@ public:
     TestApp();
     ~TestApp() = default;
 
-//    //--- Process
-//    void restart() override;
-//    void process() override;
+    //--- Process
+    void restart();
+    void process();
 
     //--- Drawing
     void drawScene() const;

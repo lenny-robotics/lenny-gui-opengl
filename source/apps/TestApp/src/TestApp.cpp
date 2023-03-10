@@ -7,9 +7,17 @@
 namespace lenny {
 
 TestApp::TestApp() : gui::Application("TestApp") {
-    //Setup scene callbacks
+    //Setup process
+    processes.emplace_back(std::make_shared<gui::Process>(
+        "Process-1", [&]() -> void { process(); }, [&]() -> void { restart(); }));
+
+    //Setup scene
+    const auto [width, height] = getCurrentWindowSize();
+    scenes.emplace_back(std::make_shared<gui::Scene>("Scene-1", width, height));
     scenes.back()->f_drawScene = [&]() -> void { drawScene(); };
-    scenes.back()->f_mouseButtonCallback = [&](double xPos, double yPos, Ray ray, int button, int action) -> void { mouseButtonCallback(xPos, yPos, ray, button, action); };
+    scenes.back()->f_mouseButtonCallback = [&](double xPos, double yPos, Ray ray, int button, int action) -> void {
+        mouseButtonCallback(xPos, yPos, ray, button, action);
+    };
     scenes.back()->f_fileDropCallback = [&](int count, const char** fileNames) -> void { fileDropCallback(count, fileNames); };
 
     //Add plot lines
@@ -18,16 +26,16 @@ TestApp::TestApp() : gui::Application("TestApp") {
     plot.addLineSpec({"z", [](const Eigen::Vector3d& d) { return (float)d.z(); }});
 }
 
-//void TestApp::restart() {
-//    consoleIter = 0;
-//    data_x = 0.f;
-//}
-//
-//void TestApp::process() {
-//    LENNY_LOG_INFO("Test: %d", consoleIter++);
-//    plot.addData(data_x, Eigen::Vector3d::Random());
-//    data_x += (float)getDt();
-//}
+void TestApp::restart() {
+    consoleIter = 0;
+    data_x = 0.f;
+}
+
+void TestApp::process() {
+    LENNY_LOG_INFO("Test: %d", consoleIter++);
+    plot.addData(data_x, Eigen::Vector3d::Random());
+    data_x += (float)getDt();
+}
 
 void TestApp::drawScene() const {
     //--- Renderer
