@@ -370,7 +370,7 @@ void Application::drawConsole() {
     for (const auto &[color, msg] : msgBuffer) {
         const auto rgb = tools::Logger::getColorArray(color);
         ImGui::TextColored(ImVec4(rgb[0], rgb[1], rgb[2], 1.0), "%s", msg.c_str());
-        if (msg.length() > 0 && msg.back() != '\n')
+        if (msg.length() != 0 && msg.back() != '\n')
             ImGui::SameLine(0.f, 0.f);
     }
     ImGui::End();

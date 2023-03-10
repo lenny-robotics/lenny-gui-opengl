@@ -45,6 +45,8 @@ public:
     bool Input(const char* label, Eigen::Vector2d& value, const char* format = "%.6f", int flags = 0) const override;
     bool Input(const char* label, Eigen::Vector3d& value, const char* format = "%.6f", int flags = 0) const override;
     bool Input(const char* label, Eigen::VectorXd& value, const char* format = "%.6f", int flags = 0) const override;
+    bool Input(const char* label, Eigen::Matrix3d& value, const char* format = "%.6f", int flags = 0) const override;
+    bool Input(const char* label, Eigen::QuaternionD& value, const char* format = "%.6f", int flags = 0) const override;
     bool Input(const char* label, tools::Transformation& trafo, const char* format = "%.6f") const override;
 
     //--- Checkbox and buttons

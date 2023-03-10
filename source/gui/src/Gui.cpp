@@ -99,6 +99,14 @@ bool Gui::Input(const char* label, Eigen::VectorXd& value, const char* format, i
     return ImGui::InputVectorD<-1>(label, value, format);
 }
 
+bool Gui::Input(const char* label, Eigen::Matrix3d& value, const char* format, int flags) const {
+    return ImGui::InputOrientation(label, value, format, flags);
+}
+
+bool Gui::Input(const char* label, Eigen::QuaternionD& value, const char* format, int flags) const {
+    return ImGui::InputOrientation(label, value, format, flags);
+}
+
 bool Gui::Input(const char* label, tools::Transformation& trafo, const char* format) const {
     return ImGui::InputTransformation(label, trafo, format);
 }

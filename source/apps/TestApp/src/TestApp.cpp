@@ -105,6 +105,20 @@ void TestApp::drawGui() {
     ImGui::ColorPicker4("Renderer Color", rendererColor);
     ImGui::Checkbox("Show Materials", &showMaterials);
 
+    if (selectedModel) {
+        static float threshold = 0.8f;
+        static float targetError = 0.01;
+        static bool saveToFile = false;
+        ImGui::SliderFloat("Threshold", &threshold, 0.f, 1.f);
+        ImGui::SliderFloat("Target Error", &targetError, 0.f, 1.f);
+        ImGui::Checkbox("Save To File", &saveToFile);
+        if (ImGui::Button("Simplify"))
+            selectedModel->mesh.simplify(threshold, targetError, saveToFile);
+
+        if (ImGui::Button("Export as OBJ"))
+            selectedModel->mesh.exportAsOBJ();
+    }
+
     //--- ImPlot
     if (ImGui::TreeNode("Plot")) {
         plot.draw();
