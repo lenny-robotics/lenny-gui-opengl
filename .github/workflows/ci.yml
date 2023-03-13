@@ -1,4 +1,4 @@
-name: CMake
+name: Continuous Integration
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build_release:
+  build:
+    #Operating systems
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
@@ -16,39 +17,25 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
+    #SSH key
     - uses: webfactory/ssh-agent@v0.7.0
       with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Configure CMake in Release Mode
-      run: cmake -B ${{github.workspace}}/build_release -DCMAKE_BUILD_TYPE=Release
+    #Install dependencies
+    - name: Install Linux Libraries
+      if: runner.os == 'Linux'
+      run : |
+        sudo apt-get install libgl1-mesa-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
 
-    - name: Build in Release Mode
-      run: cmake --build ${{github.workspace}}/build_release --config Release
+    #Cmake (in Debug mode)
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build_debug -DCMAKE_BUILD_TYPE=Debug
 
-    - name: Run Tests in Release Mode
-      working-directory: ${{github.workspace}}/build_release
-      run: ctest -C Release --output-on-failure
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build_debug --config Debug
 
-  build_debug:
-    runs-on: ${{matrix.os}}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-2022]
+    - name: Run Tests
+      working-directory: ${{github.workspace}}/build_debug
+      run: ctest -C Debug --output-on-failure
 
-    steps:
-      - uses: actions/checkout@v3
-      
-      - uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Configure CMake in Debug Mode
-        run: cmake -B ${{github.workspace}}/build_debug -DCMAKE_BUILD_TYPE=Debug
-
-      - name: Build in Debug Mode
-        run: cmake --build ${{github.workspace}}/build_debug --config Debug
-
-      - name: Run Tests in Debug Mode
-        working-directory: ${{github.workspace}}/build_debug
-        run: ctest -C Debug --output-on-failure
