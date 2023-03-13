@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ImGui.h>
 #include <ImGuizmo.h>
 #include <lenny/gui/Scene.h>
 
