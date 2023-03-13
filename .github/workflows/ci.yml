@@ -1,0 +1,46 @@
+name: CMake
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build_release:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure CMake in Release Mode
+      run: cmake -B ${{github.workspace}}/build_release -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build in Release Mode
+      run: cmake --build ${{github.workspace}}/build_release --config Release
+
+    - name: Run Tests in Release Mode
+      working-directory: ${{github.workspace}}/build_release
+      run: ctest -C Release --output-on-failure
+
+  build_debug:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure CMake in Debug Mode
+        run: cmake -B ${{github.workspace}}/build_debug -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build in Debug Mode
+        run: cmake --build ${{github.workspace}}/build_debug --config Debug
+
+      - name: Run Tests in Debug Mode
+        working-directory: ${{github.workspace}}/build_debug
+        run: ctest -C Debug --output-on-failure
