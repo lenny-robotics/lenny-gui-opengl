@@ -15,6 +15,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    
+    - uses: webfactory/ssh-agent@v0.7.0
+      with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Configure CMake in Release Mode
       run: cmake -B ${{github.workspace}}/build_release -DCMAKE_BUILD_TYPE=Release
@@ -34,6 +38,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Configure CMake in Debug Mode
         run: cmake -B ${{github.workspace}}/build_debug -DCMAKE_BUILD_TYPE=Debug
