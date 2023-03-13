@@ -1,7 +1,10 @@
 #pragma once
 
-#include <ImGui.h>
+// clang-format off
+#include <imgui.h>
 #include <ImGuizmo.h>
+// clang-format on
+
 #include <lenny/gui/Scene.h>
 
 namespace lenny::gui {
