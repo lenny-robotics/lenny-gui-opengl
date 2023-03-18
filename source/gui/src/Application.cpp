@@ -194,13 +194,13 @@ void Application::setCallbacks() {
         if (action == GLFW_PRESS || action == GLFW_RELEASE) {
             //Processes
             if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-                for(auto& process : app->processes)
+                for (auto &process : app->processes)
                     process->toggle();
             if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS)
-                for(auto& process : app->processes)
+                for (auto &process : app->processes)
                     process->step();
             if (key == GLFW_KEY_LEFT && action == GLFW_PRESS)
-                for(auto& process : app->processes)
+                for (auto &process : app->processes)
                     process->restart();
 
             //Scene callbacks
@@ -284,6 +284,11 @@ void Application::run() {
         //Poll IO events (keyboard, mouse, etc.)
         glfwPollEvents();
 
+        //Processes
+        for (Process::SPtr process : processes)
+            if (!process->separateThreadIsUsed() && process->isRunning())
+                process->step();
+
         //Draw
         prepareToDraw();
         draw();
@@ -305,7 +310,7 @@ void Application::run() {
 void Application::drawMenuBar() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Processes")) {
-            for(Process::SPtr process : processes)
+            for (Process::SPtr process : processes)
                 process->drawGui();
 
             ImGui::EndMenu();
@@ -356,7 +361,6 @@ void Application::drawMenuBar() {
             if (ImGui::Button("Save Screenshot"))
                 saveScreenshotToFile(LENNY_PROJECT_FOLDER "/logs/Screenshot-" + tools::utils::getCurrentDateAndTime() + ".png");
 
-
             ImGui::EndMenu();
         }
 
@@ -394,7 +398,7 @@ double Application::getDt() const {
 
 bool Application::saveScreenshotToFile(const std::string &filePath) const {
     //Check extension
-    if(!tools::utils::checkFileExtension(filePath, "png")){
+    if (!tools::utils::checkFileExtension(filePath, "png")) {
         LENNY_LOG_WARNING("Invalid file extension for file path `%s`. It needs to be `png`", filePath.c_str())
         return false;
     }
@@ -424,7 +428,7 @@ bool Application::saveScreenshotToFile(const std::string &filePath) const {
 void Application::draw() {
     //Prepare glfw
     const auto [windowWidth, windowHeight] = getCurrentWindowSize();
-    if(windowWidth < 1 || windowHeight < 1)
+    if (windowWidth < 1 || windowHeight < 1)
         return;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, windowWidth, windowHeight);

@@ -10,7 +10,7 @@ namespace lenny {
 TestApp::TestApp() : gui::Application("TestApp") {
     //Setup process
     processes.emplace_back(std::make_shared<gui::Process>(
-        "Process-1", [&]() -> void { process(); }, [&]() -> void { restart(); }));
+        "Process-1", [&]() -> void { process(); }, [&]() -> void { restart(); }, true));
 
     //Setup scene
     const auto [width, height] = getCurrentWindowSize();

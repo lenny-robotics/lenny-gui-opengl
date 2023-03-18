@@ -1,9 +1,10 @@
 #pragma once
 
-#include <functional>
-#include <thread>
-#include <string>
 #include <lenny/tools/Typedefs.h>
+
+#include <functional>
+#include <string>
+#include <thread>
 
 namespace lenny::gui {
 
@@ -11,7 +12,7 @@ class Process {
 public:
     LENNY_GENERAGE_TYPEDEFS(Process)
     typedef std::function<void()> Function;
-    Process(const std::string& description, const Function& f_process, const Function& f_restart);
+    Process(const std::string& description, const Function& f_process, const Function& f_restart, const bool& useSeparateThread = false);
     ~Process();
 
     void start();
@@ -20,6 +21,7 @@ public:
     void step();
     void restart();
 
+    bool separateThreadIsUsed() const;
     bool isRunning() const;
     double getDt() const;
     double getCurrentFramerate() const;
@@ -35,7 +37,8 @@ public:
     double targetFramerate = 100.0;
 
 private:
-    Function f_process, f_restart;  //Set by constructor
+    const bool useSeparateThread;         // Set by constructor
+    const Function f_process, f_restart;  //Set by constructor
     double currentFramerate = targetFramerate;
     bool processIsRunning = false;
     std::thread processThread;
