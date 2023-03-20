@@ -330,8 +330,10 @@ void Application::drawMenuBar() {
             if (ImGui::Button("Add Scene")) {
                 const auto &[width, height] = getCurrentWindowSize();
                 scenes.emplace_back(std::make_shared<Scene>("Scene-" + std::to_string(scenes.size() + 1), width, height));
-                if (scenes.size() > 1)
+                if (scenes.size() > 1) {
                     scenes.back()->copyCallbacksFromOtherScene(scenes.at(scenes.size() - 2));
+                    scenes.back()->sync(scenes.at(scenes.size() - 2));
+                }
             }
 
             ImGui::Separator();
