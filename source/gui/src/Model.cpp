@@ -184,6 +184,10 @@ std::optional<Model::HitInfo> Model::hitByRay(const Eigen::Vector3d &position, c
     return std::nullopt;
 }
 
+bool Model::isCollidingWith(const Model& other) const {
+    return false;
+}
+
 inline uint loadTextureFromFile(const std::string &fileName, const std::string &directory) {
     const std::string filePath = directory + '/' + fileName;
 

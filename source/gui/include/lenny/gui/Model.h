@@ -64,6 +64,8 @@ public:
     std::optional<HitInfo> hitByRay(const Eigen::Vector3d &position, const Eigen::QuaternionD &orientation, const Eigen::Vector3d &scale,
                                     const Ray &ray) const override;
 
+    bool isCollidingWith(const Model& other) const;
+
     void load(const std::string &filePath);
     bool exportAsOBJ() const;
     void simplify(const float &threshold, const float &targetError, const bool &saveToFile);

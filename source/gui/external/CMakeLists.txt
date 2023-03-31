@@ -129,3 +129,37 @@ if (NOT TARGET meshoptimizer)
     fetch_repository(meshoptimizer)
     add_subdirectory(${meshoptimizer_SOURCE_DIR} meshoptimizer)
 endif ()
+
+# ccd
+if (NOT TARGET ccd)
+    FetchContent_Declare(
+            ccd #
+            URL https://github.com/danfis/libccd/archive/refs/tags/v2.1.zip #
+            URL_HASH MD5=46edb3134a96c9c53b52a2f17ff13bdf #
+    )
+    # ToDo!
+    #FetchContent_Declare(
+    #        ccd #
+    #        GIT_REPOSITORY https://github.com/danfis/libccd.git #
+    #        GIT_TAG master #
+    #)
+    fetch_repository(ccd)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build libccd as a shared library")
+    add_subdirectory(${ccd_SOURCE_DIR} ccd)
+endif ()
+
+# fcl
+if (NOT TARGET fcl)
+    FetchContent_Declare(
+            fcl #
+            URL https://github.com/flexible-collision-library/fcl/archive/refs/tags/0.7.0.zip #
+            URL_HASH MD5=bdd7262584c0e5779eb2771f0de6eb28 #
+    )
+    fetch_repository(fcl)
+    #ToDo
+    set(BUILD_TESTING OFF CACHE BOOL "Build the testing tree." FORCE)
+    set(CCD_INCLUDE_DIR ${ccd_SOURCE_DIR}/src CACHE PATH "ccd include directory")
+    set(CCD_LIBRARY ${ccd_SOURCE_DIR}/src CACHE PATH "ccd library")
+
+    add_subdirectory(${fcl_SOURCE_DIR} fcl)
+endif ()
