@@ -94,8 +94,8 @@ endif ()
 if (NOT TARGET assimp)
     FetchContent_Declare(
             assimp #
-            URL https://github.com/assimp/assimp/archive/refs/tags/v5.2.4.zip #
-            URL_HASH MD5=056d1c419daab16e4227fccad711fc97 #
+            URL https://github.com/assimp/assimp/archive/refs/tags/v5.2.5.zip #
+            URL_HASH MD5=22d199fdeed3ce085b445863554d9dfd #
     )
     fetch_repository(assimp)
 
