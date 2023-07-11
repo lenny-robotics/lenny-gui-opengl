@@ -48,38 +48,4 @@ bool ColorPicker4(const char* label, Eigen::Vector4d& color);
 
 bool ToggleButton(const char* str_id, bool* v);
 
-template <typename T_enum>
-inline bool EnumSelection(const char* label, uint& selectionIndex) {
-    constexpr std::size_t enum_count = magic_enum::enum_count<T_enum>();
-    if (selectionIndex >= enum_count)
-        LENNY_LOG_ERROR("Invalid selection index")
-
-    bool selected = false;
-    constexpr auto enum_names = magic_enum::enum_names<T_enum>();
-    const std::string selectedString = std::string(enum_names.at(selectionIndex));
-    if (ImGui::BeginCombo(label, selectedString.c_str())) {
-        for (uint i = 0; i < enum_count; i++) {
-            const std::string currentElement = std::string(enum_names[i]);
-            const bool is_selected = (selectedString == currentElement);
-            if (ImGui::Selectable(currentElement.c_str(), &is_selected)) {
-                selectionIndex = i;
-                selected = true;
-            }
-            if (is_selected)
-                ImGui::SetItemDefaultFocus();
-        }
-
-        ImGui::EndCombo();
-    }
-    return selected;
-}
-
-template <typename T_enum>
-inline bool EnumSelection(const char* label, T_enum& selection) {
-    uint selectionIndex = selection;
-    const bool selected = EnumSelection<T_enum>(label, selectionIndex);
-    selection = static_cast<T_enum>(selectionIndex);
-    return selected;
-}
-
 }  // namespace ImGui

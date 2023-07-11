@@ -23,6 +23,12 @@ public:
     void SameLine(float offset_from_start_x = 0.f, float spacing = -1.f) const override;
     void NewLine() const override;
 
+    bool BeginCombo(const char* label, const char* preview_value, int flags = 0) const override;
+    void EndCombo() const override;
+
+    bool Selectable(const char* label, bool selected, int flags = 0) const override;
+    void SetItemDefaultFocus() const override;
+
     //--- Sliders
     bool Slider(const char* label, double& value, const double& min, const double& max, const char* format = nullptr, int flags = 0) const override;
     bool Slider(const char* label, float& value, const float& min, const float& max, const char* format = nullptr, int flags = 0) const override;

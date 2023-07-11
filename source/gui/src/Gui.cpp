@@ -35,6 +35,22 @@ void Gui::NewLine() const {
     ImGui::NewLine();
 }
 
+bool Gui::BeginCombo(const char* label, const char* preview_value, int flags) const {
+    return ImGui::BeginCombo(label, preview_value, flags);
+}
+
+void Gui::EndCombo() const {
+    ImGui::EndCombo();
+}
+
+bool Gui::Selectable(const char* label, bool selected, int flags) const {
+    return ImGui::Selectable(label, selected, flags);
+}
+
+void Gui::SetItemDefaultFocus() const {
+    ImGui::SetItemDefaultFocus();
+}
+
 bool Gui::Slider(const char* label, double& value, const double& min, const double& max, const char* format, int flags) const {
     return ImGui::SliderDouble(label, &value, min, max, format, flags);
 }
