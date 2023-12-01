@@ -20,7 +20,7 @@ endmacro()
 macro(fetch_lenny_repository repo tag)
     FetchContent_Declare(
             lenny-${repo} #
-            GIT_REPOSITORY git@github.com:lenny-robotics/lenny-${repo}.git #
+            GIT_REPOSITORY https://github.com/lenny-robotics/lenny-${repo}.git #
             GIT_TAG ${tag} #
     )
     fetch_repository(lenny-${repo})
