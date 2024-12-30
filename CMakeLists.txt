@@ -21,7 +21,7 @@ file(MAKE_DIRECTORY "logs")
 set(CMAKE_CXX_STANDARD 20)
 
 # Fetch base lenny repository
-fetch_lenny_repository(tools v1.0.0)
+fetch_lenny_repository(tools v1.0.1)
 
 # Source code
 add_subdirectory(source)
